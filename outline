@@ -662,6 +662,7 @@ exportTasks
 # moves todo.txt items without id to outline
 # get non id'd tasks from todo.txt, mv to outline.text
 
+echo "" >> $OUTLINE_FILE # prevent no newline errors
 grep -v -E "id:[0-9]+" $TODO_FILE >> $OUTLINE_FILE
 grep -E "id:[0-9]+"  $TODO_FILE  > $TEMP_FILE
 cat $TEMP_FILE > $TODO_FILE
@@ -824,10 +825,7 @@ fi
 
 # put non id'd tasks into outline
 echo "Moving new items from todo list to outline"
-awk ''
-grep -v -E "id:[0-9]+" $TODO_FILE >> $OUTLINE_FILE
-grep -E "id:[0-9]+"  $TODO_FILE  > $TEMP_FILE
-cat $TEMP_FILE > $TODO_FILE
+todo.sh outline import
 
 # put next actions into todo.txt
 exportTasks
