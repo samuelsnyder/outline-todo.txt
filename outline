@@ -100,6 +100,28 @@ next(){
 			inheritedProjects = inheritedProjects " " projects[i]
 		}
 
+		# get current inheritable contexts and place in array
+		regex="@@[a-zA-Z0-9\\.]+"
+		start = match(currLine, regex)
+		currContext=substr(currLine, start, RLENGTH)
+		substring=currLine
+		while (start){
+			substring=substr(substring, start+RLENGTH)
+			start=match(substring, regex)
+			context = substr(substring, start, RLENGTH)
+			if(start)
+				currContext = currContext " " context
+		}
+
+		contexts[NF] = currContext
+		prevInheritedContexts=inheritedContexts
+		inheritedContexts = ""
+		for (i=1; i<NF; i++){ # inherit all heritable contexts from previous levels
+		if(contexts[i])
+			inheritedContexts = inheritedContexts " " contexts[i]
+		}
+
+
 		# identify if previous task was leaf
 		if (prev >= curr){
 			isprevleaf=1
@@ -122,7 +144,7 @@ next(){
 		if( isprevnext == 1)
 		{
 			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
-				print prevFinalPriority prevLine prevInheritedProjects
+				print prevFinalPriority prevLine prevInheritedProjects prevInheritedContexts
 			if (mode==UPDATE_NEXT)
 			{
 				# concatenatee tabs
@@ -184,7 +206,7 @@ next(){
 	END {
 		if ( (main==1 && curr > prev) || (blocked==0  && curr==1)){
 			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
-					print finalPriority currLine inheritedProjects
+					print finalPriority currLine inheritedProjects inheritedContexts
 			if (mode==UPDATE_NEXT){
 				tabs=""
 				for (i=1; i<=curr-1; i++)
