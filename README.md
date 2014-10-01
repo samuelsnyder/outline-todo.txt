@@ -5,7 +5,7 @@ outline-todo.txt
 
 A *next action* is defined as the first subtask with no subtask of its own under 1) a root task or 2) a task tagged with a project (eg. "+project")--unless the task or parent tree is tagged with *@someday* or *@maybe* (or as otherwise configured).
 
-*Next actions* inherit the project tags and the nearest priority tag from their parent tree. Context tags ("@context") are not inherited. 
+*Next actions* inherit the project tags and the nearest priority tag from their parent tree. Context tags ("@context") are not inherited unless written with two "@" symbols ("@@heritablecontext"). 
 
 Example
 ======
