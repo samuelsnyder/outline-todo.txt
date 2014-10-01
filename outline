@@ -53,16 +53,9 @@ next(){
 		main = 1 # main trunk of task tree
 		isprevleaf = 1 # previous task has no subtasks
 		curr=0 # level of indentation on current line
+		blocked=0
 	} 
 	{
-	for (i=1; i<=blockNextLen; i++){
-		regex=blockNextArr[i]
-		ind=match($NF, regex)
-		if(ind!=0){
-			main=0
-			blocked=1
-		}
-	}
 		prev=curr           # number of fields current line and previous
 		prevLine=currLine   # text of line
 		curr=NF
@@ -115,112 +108,113 @@ next(){
 		{
 			isprevleaf=0
 		}
+
 		# identify if previous task was a next action
-				if (isprevleaf && main)
-				{
-					isprevnext=1
+		if (isprevleaf && main)
+		{
+			isprevnext=1
+		}
+		else
+		{
+			isprevnext=0
+		}
+
+		if( isprevnext == 1)
+		{
+			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
+				print prevFinalPriority prevLine prevInheritedProjects
+			if (mode==UPDATE_NEXT)
+			{
+				# concatenatee tabs
+				tabs=""
+				for (i=1; i <= prev-1; i++){
+					tabs= tabs "\t"
 				}
+				# print line with id if missing
+				pattern="id:[0-9]+"
+				if (match(prevLine, pattern))
+					print tabs prevPriority prevLine # this line has been processed previously
 				else
+					print tabs prevPriority prevLine  " id:" ++numIDs
+			}
+		}
+		else
+		{
+			if (NR > 1){ 
+				if (mode==DISPLAY_NEXT)
+					print  "" # blank lines preserve original task line number
+				if (mode==UPDATE_NEXT)
 				{
-					isprevnext=0
+					# concatenate tabs
+					tabs=""
+					for (i=1; i <= prev-1; i++){
+						tabs= tabs "\t"
+					}
+					# print line 
+					print tabs prevPriority prevLine
 				}
+			}
+		}
+		
+		# if prev is isprevleaf, curr is off main trunk
+		if (isprevleaf > 0){
+			main =0
+		}
+		# if there is a project tag, we are starting a new trunk
+		if (currProj){
+			main=1
+		}
 
-				if( isprevnext == 1)
-					{
-						if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
-							print prevFinalPriority prevLine prevInheritedProjects
-							if (mode==UPDATE_NEXT)
-								{
-									# concatenatee tabs
-									tabs=""
-									for (i=1; i <= prev-1; i++){
-										tabs= tabs "\t"
-									}
-									# print line with id if missing
-									pattern="id:[0-9]+"
-									if (match(prevLine, pattern))
-										print tabs prevPriority prevLine # this line has been processed previously
-									else
-										print tabs prevPriority prevLine  " id:" ++numIDs
-									}
-								}
-							else
-								{
-									if (NR > 1){ 
-										if (mode==DISPLAY_NEXT)
-											print  "" # blank lines preserve original task line number
-											if (mode==UPDATE_NEXT)
-												{
-													# concatenate tabs
-													tabs=""
-													for (i=1; i <= prev-1; i++){
-														tabs= tabs "\t"
-													}
-													# print line 
-													print tabs prevPriority prevLine
-												}
-											}
-										}
-										# if prev is isprevleaf, curr is off main trunk
-										if (isprevleaf > 0){
-											main =0
-										}
-										# if there is a project tag, we are starting a new trunk
-										if (currProj){
-											main=1
-										}
+		# new root means back on main
+		if (curr==1){
+			main=1
+			blocked=0
+		}
 
-										# new root means back on main
-										if (curr==1){
-											main=1
-											blocked=0
-										}
-
-										# next blocking tag, not on main
-										for (i=1; i<=blockNextLen; i++){
-											regex=blockNextArr[i]
-											ind=match($NF, regex)
-											if(ind!=0){
-												main=0
-												blocked=1
-											}
-										}
-									}
-									END {
-										if ( (main==1 && curr > prev) || (blocked==0  && curr==1)){
-											if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
-												print finalPriority currLine inheritedProjects
-												if (mode==UPDATE_NEXT){
-													tabs=""
-													for (i=1; i<=curr-1; i++)
-													{
-														tabs=tabs "\t"
-													}
-													pattern="id:[0-9]+"
-													if (match(currLine, pattern))
-														print tabs currPriority currLine  #previously processed
-													else
-														print tabs currPriority currLine " id:" ++numIDs
-													}
-												}
-											else
-												{
-													if (mode==DISPLAY_NEXT)
-														print ""
-														if (mode==UPDATE_NEXT){
-															tabs=""
-															for (i=1; i<=curr-1; i++)
-															{
-																tabs=tabs "\t"
-															}
-															print tabs currPriority currLine  # not next
-														}
-													}
-													if (mode==UPDATE_NEXT)
-														print "ids:" numIDs
-													}
-													'  $OUTLINE_FILE
-												}
+		# next blocking tag, not on main
+		for (i=1; i<=blockNextLen; i++){
+			regex=blockNextArr[i]
+			ind=match($NF, regex)
+			if(ind!=0){
+				main=0
+				blocked=1
+			}
+		}
+	}
+	END {
+		if ( (main==1 && curr > prev) || (blocked==0  && curr==1)){
+			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
+					print finalPriority currLine inheritedProjects
+			if (mode==UPDATE_NEXT){
+				tabs=""
+				for (i=1; i<=curr-1; i++)
+				{
+					tabs=tabs "\t"
+				}
+				pattern="id:[0-9]+"
+				if (match(currLine, pattern))
+					print tabs currPriority currLine #previously processed
+				else
+					print tabs currPriority currLine " id:" ++numIDs
+			}
+		}
+		else
+		{
+			if (mode==DISPLAY_NEXT)
+				print ""
+			if (mode==UPDATE_NEXT){
+				tabs=""
+				for (i=1; i<=curr-1; i++)
+				{
+					tabs=tabs "\t"
+				}
+				print tabs currPriority currLine  # not next
+			}
+		}
+		if (mode==UPDATE_NEXT)
+			print "ids:" numIDs
+	}'  $OUTLINE_FILE
+}
 
 # Displays contents of outline
 # $1: line number of node to treat as root node
@@ -243,54 +237,56 @@ showoutline()
 	{
 		if (NR < line)
 			next
-			if (NR == line) # the line to start with
-				{
-					print breadcrumb
-					startlevel=NF
-					print NR " " $NF
-				}
-			else
-				{
-					if (NF <= startlevel)
-						{
-						done=1
-					}
-					if (done)
-						{next}  
+		if (NR == line) # the line to start with
+		{
+			print breadcrumb
+			startlevel=NF
+			print NR " " $NF
+		}
+		else
+		{
+			if (NF <= startlevel)
+			{
+				done=1
+			}
+			if (done)
+			{
+				next
+			}  
 
-						text=$NF
-						numTabs=NF-startlevel
-						tabs=""
-						for(i=1; i<=numTabs; i++)
-						{
-							if (i>1)
-								tabs= tabs "."
-								tabs=tabs "\t"
-							}
-							text=NR tabs text
-							if (expand) # show all subtasks
-								print text
-							else
-								# show only direct subtasks 
-								if (NF==startlevel+1)
-									{
-										count++
-										textarray[count] = text
-									}
-								else
-									extraarray[count] = extraarray[count] "."
-								}
-							}
-							END {
-								if (!expand){
-									for (i=1; i <= count; i++) {
-										if (extraarray[i]){
-											textarray[i]= textarray[i] " [" extraarray[i] "]"
-										}
-										print textarray[i]
-									}
-								}
-							}' $OUTLINE_FILE
+			text=$NF
+			numTabs=NF-startlevel
+			tabs=""
+			for(i=1; i<=numTabs; i++)
+			{
+				if (i>1)
+					tabs= tabs "."
+				tabs=tabs "\t"
+			}
+			text=NR tabs text
+			if (expand) # show all subtasks
+				print text
+			else
+			# show only direct subtasks 
+			if (NF==startlevel+1)
+			{
+				count++
+				textarray[count] = text
+			}
+			else
+			extraarray[count] = extraarray[count] "."
+		}
+	}
+	END {
+		if (!expand){
+			for (i=1; i <= count; i++) {
+				if (extraarray[i]){
+					textarray[i]= textarray[i] " [" extraarray[i] "]"
+				}
+				print textarray[i]
+			}
+		}
+	}' $OUTLINE_FILE
 
 						}
 
@@ -904,4 +900,3 @@ awk 'NF > 0' $OUTLINE_FILE > $TEMP_FILE
 cat $TEMP_FILE > $OUTLINE_FILE
 
 rm -f $TEMP_FILE
-
