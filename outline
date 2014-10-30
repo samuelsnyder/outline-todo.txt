@@ -3,12 +3,12 @@
 # == CONFIG ==
 OUTLINE_FILENAME="outline.txt"
 OUTLINE_FILE=$TODO_DIR/$OUTLINE_FILENAME
-BLOCK_NEXT_TAGS="@someday,@maybe" # tags to block labeling as next action. separate with commas	
+BLOCK_NEXT_TAGS="@someday,@maybe" # tags to block labeling as next action. separate with commas
 
 # == GLOBALS ===
 TODO_FILENAME="${TODO_FILE:$((${#TODO_DIR}+1))}"
 TEMP_FILE="$OUTLINE_FILE.temp.txt"
-DATA_FILE="$OUTLINE_FILE.data" 
+DATA_FILE="$OUTLINE_FILE.data"
 DISPLAY_NEXT=1
 UPDATE_NEXT=2
 DISPLAY_ONLY_NEXT=3
@@ -29,7 +29,7 @@ shift
 # $1 is mode
 # if mode==DISPLAY_NEXT
 #   return list of next actions with inherited priority and projects,
-#   blank lines for non-next to preserve line number of 
+#   blank lines for non-next to preserve line number of
 # if mode==UPDATE_NEXT
 #   return entire outline, with id numbers on next actions
 # if mode==DISPLAY_ONLY_NEXT
@@ -54,7 +54,7 @@ next(){
 		isprevleaf = 1 # previous task has no subtasks
 		curr=0 # level of indentation on current line
 		blocked=0
-	} 
+	}
 	{
 		prev=curr           # number of fields current line and previous
 		prevLine=currLine   # text of line
@@ -70,14 +70,14 @@ next(){
 		}
 
 		priorities[NF]=currPriority # array of prioriteis by indentation level
-		#inherit priority  
+		#inherit priority
 		prevFinalPriority=finalPriority
 		finalPriority=""
 		for (i=1; i<=NF; i++){
 			if (priorities[i]){
 				finalPriority= priorities[i] # "inherited" priority could be current
 			}
-		}      
+		}
 
 		# get current projects and place in array
 		regex="\\+[a-zA-Z0-9\\.]+"
@@ -162,7 +162,7 @@ next(){
 		}
 		else
 		{
-			if (NR > 1){ 
+			if (NR > 1){
 				if (mode==DISPLAY_NEXT)
 					print  "" # blank lines preserve original task line number
 				if (mode==UPDATE_NEXT)
@@ -172,12 +172,12 @@ next(){
 					for (i=1; i <= prev-1; i++){
 						tabs= tabs "\t"
 					}
-					# print line 
+					# print line
 					print tabs prevPriority prevLine
 				}
 			}
 		}
-		
+
 		# if prev is isprevleaf, curr is off main trunk
 		if (isprevleaf > 0){
 			main =0
@@ -274,7 +274,7 @@ showoutline()
 			if (done)
 			{
 				next
-			}  
+			}
 
 			text=$NF
 			numTabs=NF-startlevel
@@ -289,7 +289,7 @@ showoutline()
 			if (expand) # show all subtasks
 				print text
 			else
-			# show only direct subtasks 
+			# show only direct subtasks
 			if (NF==startlevel+1)
 			{
 				count++
@@ -347,7 +347,7 @@ BEGIN {
 	}
 else
 	{
-		# print line 
+		# print line
 		text=""
 		for (j=1; j<NF; j++ )
 		{
@@ -379,8 +379,8 @@ echo "Copying next action tasks to todo.txt"
 # copy ID'd tasks to todo.txt unless blocked
 
 next $DISPLAY_ONLY_NEXT > $TEMP_FILE
-cat $TEMP_FILE > $TODO_FILE		
-} 
+cat $TEMP_FILE > $TODO_FILE
+}
 
 
 usage()
@@ -405,7 +405,7 @@ usage()
 	echo   "    addbefore LINE_NUMBER \"Task text\""
 	echo   "    ab LINE_NUMBER \"Task text\""
 	echo   "        Adds line of text in outline.txt before"
-	echo   "        line number LINE_NUMBER, with same indentation" 
+	echo   "        line number LINE_NUMBER, with same indentation"
 	echo   ""
 	echo   "    addsubtask LINE_NUMBER \"Task text\" "
 	echo   "    as LINE_NUMBER \"Task text\" "
@@ -414,7 +414,7 @@ usage()
 	echo   ""
 	echo   "    export"
 	echo   "    e"
-	echo   "        Removes next actions from outline.txt which have been completed" 
+	echo   "        Removes next actions from outline.txt which have been completed"
 	echo   "        Labels any new next actions in outline.txt with id:<number>."
 	echo   "        Copies next actions from outline.txt to todo.txt unless already present"
 	echo   "        Removes items from todo.txt that are no longer next actions in outline.txt"
@@ -423,8 +423,8 @@ usage()
 	echo   "    i"
 	echo   "        Copies new items from todo.txt to outline.txt"
 	echo   ""
-	echo   "    list [LINE_NUMBER]" 
-	echo   "    ls [LINE_NUMBER]" 
+	echo   "    list [LINE_NUMBER]"
+	echo   "    ls [LINE_NUMBER]"
 	echo   "        If LINE_NUMBER is specified, displays immediate subtasks"
 	echo   "        of LINE_NUMBER. Otherwise displays top level tasks."
 	echo   ""
@@ -443,7 +443,7 @@ usage()
 	echo   "        Displays next actions in outline.txt"
 	echo   "        Each top level task and item tagged with a project"
 	echo   "        (i.e. \"+project\") has one next action: the task with"
-	echo   "        with no subtask beneath it or sibling task above it" 
+	echo   "        with no subtask beneath it or sibling task above it"
 	echo   ""
 	echo   "    rm LINE_NUMBER"
 	echo   "    del LINE_NUMBER"
@@ -451,7 +451,7 @@ usage()
 	echo   ""
 	echo   "    sync"
 	echo   "    s"
-	echo   "        Removes next actions from outline.txt which have been completed" 
+	echo   "        Removes next actions from outline.txt which have been completed"
 	echo   "        Copies new items from todo.txt to outline.txt"
 	echo   "        Labels any new next actions in outline.txt with id:<number>."
 	echo   "        Copies next actions from outline.txt to todo.txt unless already present"
@@ -480,7 +480,7 @@ line=$1
 shift
 
 if [ -z "$line" ]
-	then	
+	then
 	echo "Error: No line number specified"
 	usage
 fi
@@ -491,7 +491,7 @@ shift
 re='^[0-9]+$' # http://stackoverflow.com/questions/806906/how-do-i-test-if-a-variable-is-a-number-in-bash
 if ! [[ $indent =~ $re ]] ; then
 	echo "Error: Indentation not specified as number";
-	echo "" 
+	echo ""
 	usage
 fi
 
@@ -506,7 +506,7 @@ BEGIN{
 {
 	if (NR==line)# when NR matches line number
 		{
-			numtabs=indent # get number of tabs     
+			numtabs=indent # get number of tabs
 			text=""
 			for (i=1; i<numtabs; i++)
 			{
@@ -515,14 +515,14 @@ BEGIN{
 			text=text task
 			print text
 		}
-		print # print each line 
+		print # print each line
 	}
-	' $TEMP_FILE > $OUTLINE_FILE 
+	' $TEMP_FILE > $OUTLINE_FILE
 
 	;;
 
 	"addafter" | "aa")
-# addafter | aa [#TASK] [TERM] 
+# addafter | aa [#TASK] [TERM]
 
 line=$1
 shift
@@ -542,7 +542,7 @@ BEGIN{
 {
 	if (NR==line)# when NR matches line number create text with correct tabs
 		{
-			tabs=NF # get number of tabs     
+			tabs=NF # get number of tabs
 			text=""
 			for (i=1; i<tabs; i++)
 			{
@@ -556,13 +556,13 @@ BEGIN{
 				print text
 				printed=1 # make a record of fact that we printed item
 			}
-			print # print each line 
+			print # print each line
 		}
 		END {
 			if (printed==0)
 				print text #in case we never were able to print text
 			}
-			' $TEMP_FILE  > $OUTLINE_FILE 
+			' $TEMP_FILE  > $OUTLINE_FILE
 			;;
 
 			"addbefore" | "ab" )
@@ -586,7 +586,7 @@ BEGIN{
 {
 	if (NR==line)# when NR matches line number
 		{
-			numtabs=NF # get number of tabs     
+			numtabs=NF # get number of tabs
 			text=""
 			for (i=1; i<NF; i++)
 			{
@@ -595,9 +595,9 @@ BEGIN{
 			text=text task
 			print text
 		}
-		print # print each line 
+		print # print each line
 	}
-	' $TEMP_FILE > $OUTLINE_FILE 
+	' $TEMP_FILE > $OUTLINE_FILE
 	;;
 
 	"addsubtask" | "as" )
@@ -619,10 +619,10 @@ BEGIN{
 	FS="\t"
 }
 {
-	print # print each line 
+	print # print each line
 	if (NR==line)# when NR matches line number
 		{
-			numtabs=NF # get number of tabs     
+			numtabs=NF # get number of tabs
 			text=""
 			for (i=1; i<=NF; i++)
 			{
@@ -632,7 +632,7 @@ BEGIN{
 			print text
 		}
 	}
-	' $TEMP_FILE  > $OUTLINE_FILE 
+	' $TEMP_FILE  > $OUTLINE_FILE
 	;;
 
 "do" | "d" )
@@ -640,7 +640,7 @@ BEGIN{
 line=$1
 
 if [ -z "$line" ]
-	then	
+	then
 	echo "Error: No line number specified"
 	echo "Usage: todo.sh outline do [LINE_NUMBER]"
 	exit
@@ -662,7 +662,7 @@ cat $TEMP_FILE  > $OUTLINE_FILE
 # add newline to todo.txt to avoid no newline errors
 echo "" >> $TODO_FILE
 
-# use todo.sh mv function 
+# use todo.sh mv function
 todo.sh -f mv $line $TODO_FILENAME $OUTLINE_FILENAME
 length=$(cat $TODO_FILE | wc -l)
 length=$((length))
@@ -759,7 +759,7 @@ else
 					print $NF
 				}
 			}
-			' $OUTLINE_FILE) 
+			' $OUTLINE_FILE)
 fi
 
 # delete line,  > temp
@@ -776,7 +776,7 @@ BEGIN{
 		{
 			if (indent)
 				{
-					numtabs=indent # get number of tabs     
+					numtabs=indent # get number of tabs
 					text=""
 					for (i=1; i<numtabs; i++)
 					{
@@ -791,14 +791,14 @@ BEGIN{
 				}
 			}
 
-			print # print each line 
+			print # print each line
 		}
-		END { 
+		END {
 		if (line > FNR )
 			{
 				if (indent)
 					{
-						numtabs=indent # get number of tabs     
+						numtabs=indent # get number of tabs
 						text=""
 						for (i=1; i<numtabs; i++)
 						{
@@ -813,7 +813,7 @@ BEGIN{
 					}
 				}
 			}
-			' $TEMP_FILE  > $OUTLINE_FILE 
+			' $TEMP_FILE  > $OUTLINE_FILE
 			;;
 
 			"next" | "n" )
@@ -884,7 +884,7 @@ BEGIN{
 	if (NR==line)# when NR matches line number
 		{
 			task = $NF
-			numtabs=indent # get number of tabs     
+			numtabs=indent # get number of tabs
 			text=""
 			for (i=1; i<numtabs; i++)
 			{
@@ -894,9 +894,9 @@ BEGIN{
 			print text
 		}
 	else
-		print # print each line 
+		print # print each line
 	}
-	' $TEMP_FILE  > $OUTLINE_FILE 
+	' $TEMP_FILE  > $OUTLINE_FILE
 	;;
 
 "help" | "h" )
@@ -915,10 +915,10 @@ esac
 
 # clean up any empty lines in todo.txt or outline.txt
 
-awk 'NF > 0' $TODO_FILE > $TEMP_FILE	
+awk 'NF > 0' $TODO_FILE > $TEMP_FILE
 cat $TEMP_FILE > $TODO_FILE
 
-awk 'NF > 0' $OUTLINE_FILE > $TEMP_FILE	
+awk 'NF > 0' $OUTLINE_FILE > $TEMP_FILE
 cat $TEMP_FILE > $OUTLINE_FILE
 
 rm -f $TEMP_FILE
