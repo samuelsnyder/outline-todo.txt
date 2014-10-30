@@ -309,8 +309,7 @@ showoutline()
 			}
 		}
 	}' $OUTLINE_FILE
-
-						}
+}
 
 # Searches done.txt for completed task ids
 # Removes completed tasks from outline.txt
@@ -345,7 +344,7 @@ BEGIN {
 	if(foundmatch){
 		# "do nothing"
 	}
-else
+	else
 	{
 		# print line
 		text=""
@@ -385,81 +384,83 @@ cat $TEMP_FILE > $TODO_FILE
 
 usage()
 {
-	echo   "outline"
-	echo   " Usage: todo.sh outline action [options]"
-	echo   "        todo.sh ol action [options]"
-	echo   ""
-	echo   " Note: tab indented outline, outline.txt, should be present "
-	echo   "      in todo.txt directory"
-	echo   ""
-	echo   " Actions:"
-	echo   "    add LINE_NUMBER INDENTATION \"Task text\""
-	echo   "    a LINE_NUMBER INDENTATION \"Task text\""
-	echo   "        Adds task text to line LINE_NUMBER with INDENTATION tabs"
-	echo   ""
-	echo   "    addafter LINE_NUMBER \"Task text\""
-	echo   "    aa LINE_NUMBER \"Task text\""
-	echo   "        Adds line of text in outline.txt below"
-	echo   "        line number LINE_NUMBER, with same indentation"
-	echo   ""
-	echo   "    addbefore LINE_NUMBER \"Task text\""
-	echo   "    ab LINE_NUMBER \"Task text\""
-	echo   "        Adds line of text in outline.txt before"
-	echo   "        line number LINE_NUMBER, with same indentation"
-	echo   ""
-	echo   "    addsubtask LINE_NUMBER \"Task text\" "
-	echo   "    as LINE_NUMBER \"Task text\" "
-	echo   "        Adds line of text in outline.txt in line below"
-	echo   "        with additional indentation"
-	echo   ""
-	echo   "    export"
-	echo   "    e"
-	echo   "        Removes next actions from outline.txt which have been completed"
-	echo   "        Labels any new next actions in outline.txt with id:<number>."
-	echo   "        Copies next actions from outline.txt to todo.txt unless already present"
-	echo   "        Removes items from todo.txt that are no longer next actions in outline.txt"
-	echo   ""
-	echo   "    import"
-	echo   "    i"
-	echo   "        Copies new items from todo.txt to outline.txt"
-	echo   ""
-	echo   "    list [LINE_NUMBER]"
-	echo   "    ls [LINE_NUMBER]"
-	echo   "        If LINE_NUMBER is specified, displays immediate subtasks"
-	echo   "        of LINE_NUMBER. Otherwise displays top level tasks."
-	echo   ""
-	echo   "    listall [LINE_NUMBER]"
-	echo   "    lsa [LINE_NUMBER]"
-	echo   "        Displays all subtasks of LINE_NUMBER. If LINE_NUMBER"
-	echo   "        not specified, displays entire outline."
-	echo   ""
-	echo   "    move SRC_LINE DEST_LINE [NUM_TABS]"
-	echo   "    mv SRC_LINE DEST_LINE [NUM_TABS]"
-	echo   "        Moves source line to destination line in outline.txt"
-	echo   "        If indentation is not specified, original indentation is preserved"
-	echo   ""
-	echo   "    next"
-	echo   "    n"
-	echo   "        Displays next actions in outline.txt"
-	echo   "        Each top level task and item tagged with a project"
-	echo   "        (i.e. \"+project\") has one next action: the task with"
-	echo   "        with no subtask beneath it or sibling task above it"
-	echo   ""
-	echo   "    rm LINE_NUMBER"
-	echo   "    del LINE_NUMBER"
-	echo   "         Removes specified line from outlook.txt"
-	echo   ""
-	echo   "    sync"
-	echo   "    s"
-	echo   "        Removes next actions from outline.txt which have been completed"
-	echo   "        Copies new items from todo.txt to outline.txt"
-	echo   "        Labels any new next actions in outline.txt with id:<number>."
-	echo   "        Copies next actions from outline.txt to todo.txt unless already present"
-	echo   "        Removes items from todo.txt that are no longer next actions in outline.txt"
-	echo   ""
-	echo   "    tab LINE_NUMBER NUM_TABS"
-	echo   "    t LINE_NUMBER NUM_TABS"
-	echo   "        Adjusts indentation of specified line to specified tabs"
+	cat <<EndUsage
+outline
+ Usage: todo.sh outline action [options]
+        todo.sh ol action [options]
+
+ Note: tab indented outline, outline.txt, should be present
+      in todo.txt directory
+
+ Actions:
+    add LINE_NUMBER INDENTATION "Task text"
+    a LINE_NUMBER INDENTATION "Task text"
+        Adds task text to line LINE_NUMBER with INDENTATION tabs
+
+    addafter LINE_NUMBER "Task text"
+    aa LINE_NUMBER "Task text"
+        Adds line of text in outline.txt below
+        line number LINE_NUMBER, with same indentation
+
+    addbefore LINE_NUMBER "Task text"
+    ab LINE_NUMBER "Task text"
+        Adds line of text in outline.txt before
+        line number LINE_NUMBER, with same indentation
+
+    addsubtask LINE_NUMBER "Task text"
+    as LINE_NUMBER "Task text"
+        Adds line of text in outline.txt in line below
+        with additional indentation
+
+    export
+    e
+        Removes next actions from outline.txt which have been completed
+        Labels any new next actions in outline.txt with id:<number>.
+        Copies next actions from outline.txt to todo.txt unless already present
+        Removes items from todo.txt that are no longer next actions in outline.txt
+
+    import
+    i
+        Copies new items from todo.txt to outline.txt
+
+    list [LINE_NUMBER]
+    ls [LINE_NUMBER]
+        If LINE_NUMBER is specified, displays immediate subtasks
+        of LINE_NUMBER. Otherwise displays top level tasks.
+
+    listall [LINE_NUMBER]
+    lsa [LINE_NUMBER]
+        Displays all subtasks of LINE_NUMBER. If LINE_NUMBER
+        not specified, displays entire outline.
+
+    move SRC_LINE DEST_LINE [NUM_TABS]
+    mv SRC_LINE DEST_LINE [NUM_TABS]
+        Moves source line to destination line in outline.txt
+        If indentation is not specified, original indentation is preserved
+
+    next
+    n
+        Displays next actions in outline.txt
+        Each top level task and item tagged with a project
+        (i.e. "+project") has one next action: the task with
+        with no subtask beneath it or sibling task above it
+
+    rm LINE_NUMBER
+    del LINE_NUMBER
+         Removes specified line from outlook.txt
+
+    sync
+    s
+        Removes next actions from outline.txt which have been completed
+        Copies new items from todo.txt to outline.txt
+        Labels any new next actions in outline.txt with id:<number>.
+        Copies next actions from outline.txt to todo.txt unless already present
+        Removes items from todo.txt that are no longer next actions in outline.txt
+
+    tab LINE_NUMBER NUM_TABS
+    t LINE_NUMBER NUM_TABS
+        Adjusts indentation of specified line to specified tabs
+EndUsage
 	exit 1
 }
 
@@ -905,10 +906,12 @@ usage | less
 
 "usage" | * )
 
-echo "  outline:"
-echo "    outline action [ARG 1] [ARG 2]"
-echo "    ol action [ARG 1] [ARG 2]"
-echo "    Use \"todo.sh outline help\" for more information"
+cat <<EndUsage
+  outline:
+    outline action [ARG 1] [ARG 2]
+    ol action [ARG 1] [ARG 2]
+    Use "todo.sh outline help" for more information
+EndUsage
 ;;
 
 esac
