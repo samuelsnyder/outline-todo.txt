@@ -143,8 +143,11 @@ next(){
 
 		if( isprevnext == 1)
 		{
-			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
-				print prevFinalPriority prevLine prevInheritedProjects prevInheritedContexts
+			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT) {
+				if (blocked == 0) {
+					print prevFinalPriority prevLine prevInheritedProjects prevInheritedContexts
+				}
+			}
 			if (mode==UPDATE_NEXT)
 			{
 				# concatenatee tabs
@@ -205,8 +208,11 @@ next(){
 	}
 	END {
 		if ( (main==1 && curr > prev) || (blocked==0  && curr==1)){
-			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT)
+			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT) {
+				if (blocked == 0) {
 					print finalPriority currLine inheritedProjects inheritedContexts
+				}
+			}
 			if (mode==UPDATE_NEXT){
 				tabs=""
 				for (i=1; i<=curr-1; i++)
