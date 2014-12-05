@@ -370,7 +370,7 @@ next $UPDATE_NEXT "$OUTLINE_FILE" > $TEMP_FILE
 grep -Eo "ids:[0-9]+" $TEMP_FILE > $DATA_FILE
 
 # copy temp file to outline, minus id line
-sed '/ids:[0-9]\+/d' $TEMP_FILE > $OUTLINE_FILE
+sed '/ids:[0-9][0-9]*/d' $TEMP_FILE > $OUTLINE_FILE
 rm $TEMP_FILE
 # id's are now updated with outline.txt next actions
 
