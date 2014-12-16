@@ -445,11 +445,11 @@ outline
         If indentation is not specified, original indentation is preserved
 
     next
-    n
-        Displays next actions in outline.txt
-        Each top level task and item tagged with a project
-        (i.e. "+project") has one next action: the task with
-        with no subtask beneath it or sibling task above it
+    n ["search text"]
+        Displays next actions in outline.txt containing optional "search text"
+        Each top level task and item tagged with a project (i.e. "+project") 
+        	has one next action: the first task with no subtask beneath it or 
+        	sibling task above it
 
     rm LINE_NUMBER
     del LINE_NUMBER
@@ -823,8 +823,12 @@ BEGIN{
 			' $TEMP_FILE  > $OUTLINE_FILE
 			;;
 
-			"next" | "n" )
-next $DISPLAY_NEXT| TODOTXT_VERBOSE=0 _format '' "$PADDING" "$@" # use builtin _format function to print
+"next" | "n" )
+	# no search term
+	[[ -z "$1" ]] && next $DISPLAY_NEXT | TODOTXT_VERBOSE=0 _format '' "$PADDING" "$@" # use builtin _format function to print
+
+	# search term present
+	[[ -n "$1" ]] && next $DISPLAY_NEXT| grep $1 | TODOTXT_VERBOSE=0 _format '' "$PADDING" "$@" # use builtin _format function to print
 ;;
 
 "rm" | "del" )
