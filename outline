@@ -1,937 +1,516 @@
-#!/bin/bash
+#! /bin/bash 
+shopt -s extglob # for case pattern matching 
 
-# == CONFIG ==
-OUTLINE_FILENAME="outline.txt"
-OUTLINE_FILE=$TODO_DIR/$OUTLINE_FILENAME
-BLOCK_NEXT_TAGS="@someday,@maybe" # tags to block labeling as next action. separate with commas
 
-# == GLOBALS ===
-TODO_FILENAME="${TODO_FILE:$((${#TODO_DIR}+1))}"
-TEMP_FILE="$OUTLINE_FILE.temp.txt"
-DATA_FILE="$OUTLINE_FILE.data"
-DISPLAY_NEXT=1
-UPDATE_NEXT=2
-DISPLAY_ONLY_NEXT=3
-TOTAL=$( sed -n '$ =' "$OUTLINE_FILE" )
-PADDING=${#TOTAL}
+# CONFIG
 
-shift
+# AUTO-IMPORT NEXT ACTIONS
+OL_AUTO_IMPORT=1 # Automatically import next actions of each outline into todo.txt, provided that
+				# todo.txt does not contain any tasks containing "outline:PROJECT"
 
-# defaults
-action=$1
-# : ${action:="ls"}
+## TEXT EDITOR ##
+# When creating a new outline file ($file) with the outline command,
+# the command $EDITOR $TODO_DIR/$file will be run. By default, the environmental variable EDITOR 
+# will be checked, otherwise vi will be called.
+EDITOR=${EDITOR:-"vim"} # set EDITOR, if not already set
 
-shift
+## OUTLINE FILES ##
+# File name format is <project>[<delimiter><priority>][<delimiter><context>..]<file_ending>
+#   e.g. buymilk-A.outline.txt
+# Take care that file ending does not conflict with other files, and that the delimiter
+# does not conflict with your project names.
+OL_FILENAME_ENDING=".ol.txt" # ending of outline file names
+OL_FILENAME_DELIMITER="." # delimits project names in filename
+OL_INDENT_CHAR="\t" # how indentations in the outline are marked for awk. TAB character by default
+OL_NEXT_TAG="#next" # identifies this item's task tree as active. Use ##next to activate all subtrees
+OL_LIST_TAG="#list" # direct child task trees are active when task is active. Useful for shopping lists, etc 
+OL_BLOCK_TAG="#block" # Prevents item from bieng identified as next action
+OL_WAITFOR_LABEL="#waitfor"	 # "#waitfor:PROJECT" will block identification as next action until there is no 
+				# outline corresonding to PROJECT in todo directory. ##waitfor:project to apply to 
+				# entire task tree.
 
-#functions
+## FUNCTIONS ##
+getNextActionsFromOutline(){
+    # next actions are first item with no subtasks
+    #   of an active node of the task tree, or the child of
+    #   an active node with the #list tag.
+    #   A node is active if it is the 1st
+    #   line of the outline, tagged with #next,
+    #   the first subtask of an active node, or any subtask
+    #   of a node with the @list tag.
+    # Input: $1 is name of outline file in todo directory
+    # Postconditions: nextActionArray contains next actions
+    #                 and blank lines (to indicate line number)
+	local outline_file="$1"
 
-# identifies next actions in outline.txt
-# $1 is mode
-# if mode==DISPLAY_NEXT
-#   return list of next actions with inherited priority and projects,
-#   blank lines for non-next to preserve line number of
-# if mode==UPDATE_NEXT
-#   return entire outline, with id numbers on next actions
-# if mode==DISPLAY_ONLY_NEXT
-#   return list of next actions with inherited prioirty and projects, no blank lines
-next(){
-	touch $DATA_FILE
-	numIDs=$(grep  -oE "ids:[0-9]+" $DATA_FILE  | grep -oE "[0-9]+")
-	if [ -z "$numIDs" ]
-		then
-		numIDs=0
+	local nextActionsString="$(
+  awk --re-interval -v indent="$OL_INDENT_CHAR" -v blockTag="$OL_BLOCK_TAG" -v checklistTag="$OL_LIST_TAG" -v newTaskTreeTag="$OL_NEXT_TAG" 'BEGIN{
+  FS=indent
+  }
+  function processPrevTask(){
+    # identify if prev next action
+    ## was on active trunk
+    ## current is not subtask of prev
+    if (prevActive && NF <= prevNF)
+    {
+      sub(/^[(][A-Z][)] /,"", prev)
+      if ( prevPriorityArray[prevNF] != "")
+        priority= prevPriorityArray[prevNF] " " 
+      else
+        priority=""
+      nextAction = priority prev prevTagArray[prevNF]
+      gsub(/\+\+/,"+", nextAction)
+      gsub(/@@/,"@", nextAction)
+      gsub(/##/,"#", nextAction)
+      # check for #wait tags 
+      regex=blockTag
+      m=match($0 tagArray[NF], blockTag) 
+      if (m != 0)
+      {
+        print ""
+	}
+else
+        print nextAction
+    } 
+    else
+      print ""
+  } { #- Get and inherit attributes -# 
+    # kill any lists at or below this level
+    for ( i=NF; i <= 20; i++)
+    {
+      activeListNFArray[i] = 0
+    }
+
+    # if inActive get new attributes
+    if (1==1) # (inActive==1)
+    {
+      # copy previous tags
+      for (i=1; i < NF; i++)
+      {
+        tagArray[i]=prevTagArray[i]
+      }
+      # if has priority, add to array, otherwise inherit
+      m=match($NF, /^[(][A-Z][)]/)
+      if (m != 0 )
+        priorityArray[NF]=substr($NF, m, RLENGTH)
+      else if (NF > 1) # if NF is 1, nothing to inherit
+        priorityArray[NF]=priorityArray[NF-1]
+      else
+        priorityArray[NF]=""
+
+      # copy previous projects
+      for (i=1; i < NF; i++)
+      {
+        projectsArray[i]=prevProjectsArray[i]
+      }
+      # store current projects 
+      ## loop to get all heritable tags
+      tagList= ""
+      RSTART=1
+      RLENGTH=0
+      substring=$NF
+      do {
+        substring =substr(substring, RSTART+RLENGTH)
+        match(substring, /[+@#]{2}[A-Za-z0-9_.-]+/ )
+        if(RSTART != 0)
+        {
+          tag = substr(substring, RSTART, RLENGTH)
+          tagList = tagList " " tag
+        }
+      } while (RSTART != 0)
+      tagArray[NF]= tagList tagArray[NF-1]
+
+      # determine if this is the root of a list
+      m=match($0 tagArray[NF], checklistTag)
+      if (m != 0) # matched checklist tag
+      {
+        activeListNFArray[NF] = 1
+      }  
+
+    }
+
+    #- Determine if in Active Task Trunk -#
+
+    inActive=0
+
+    # check if 1st task
+    if (NR==1 ) 
+    { 
+      inActive=1
+    }
+
+    # first subtask of prev active
+    else if(prevActive==1 && NF > prevNF)
+    {
+      inActive=1
+    }
+
+    # check for #next tags 
+    m=match($0 tagArray[NF], newTaskTreeTag) 
+    if (m != 0)
+    {
+      inActive=1
+    }
+
+    # subtask of active list ?
+    if (activeListNFArray[NF-1] == 1)
+    {
+      inActive=1
+    }
+
+    #-- Process --#
+    if (NR > 1)
+      processPrevTask()   
+
+    #-- Previous -> Current --#
+    prev=$NF
+    prevprev=prev
+    prevNF=NF
+    prevActive=inActive
+    for (i=1; i<= NF ; i++)
+      prevPriorityArray[i]=priorityArray[i]
+    
+    for (i=1; i<= NF ; i++)
+    {
+      prevTagArray[i]=tagArray[i]
+    }
+  }END{
+    # if (prevprev != prev ) # workaround for trailing blank lines
+      processPrevTask()
+  } ' "$TODO_DIR/$outline_file"
+    )"
+
+    nextActionArray=() # todos will go in here
+    while read -r ; do
+        if [[ -n "$REPLY" ]]; then
+			# this line is not blank
+
+	    	# check for waitfor tag
+	    	local waitprj=$(echo $REPLY | grep -Eo "${OL_WAITFOR_LABEL}:.*" | cut -d: -f2)
+	    	if [[ -n $waitprj && -e "$TODO_DIR/${waitprj}${OL_FILENAME_ENDING}" ]]; then 
+		    	nextActionArray+=("")
+			else
+				# strip hashtags from output
+				local nextAction="$REPLY"
+				nextAction=${nextAction//$OL_WAITFOR_LABEL:$waitprj/}
+				nextAction=${nextAction//$OL_BLOCK_TAG/}
+				nextAction=${nextAction//$OL_LIST_TAG/}
+				nextAction=${nextAction//$OL_NEXT_TAG/}
+				nextActionArray+=("$nextAction")
+			fi	
+
+        else 
+            # blank lines are used to preserve line number for _format()
+            nextActionArray+=("")
+        fi
+    done <<< "$nextActionsString"
+}
+
+usage(){
+    cat <<ENDUSAGE
+	outline|ol mkol PROJECT 
+	outline|ol mv #ITEM PROJECT
+	outline|ol edit PROJECT
+	outline|ol prepend PROJECT "TEXT..."
+	outline|ol addto PROJECT "TEXT..."
+	outline|ol import
+	outline|ol help
+ENDUSAGE
+}
+
+help(){
+    cat <<ENDHELP
+	outline|ol 
+		For each outline that does not have a next action already in todo.txt,
+		import next action(s) into to todo.txt. The presence of a task from a child
+		outline in todo.txt will also block import.
+
+	outline|ol PROJECT [#ITEM] [PARENT_PROJECT]
+		Create and edit an outline file for PROJECT, and move task #ITEM from 
+		todo.txt to the outline. Items from the outline for 
+		PARENT_PROJECT will be blocked from import into todo.txt while 
+		the PROJECT outline is present in the todo directory.
+		If the outline already exists, move task #ITEM to the outline and open
+		with their editor.
+		After the editor is closed, next actions will be identified and moved to
+
+	outline|ol import
+
+		Outline files:
+
+		Files in the todo directory ending in "$OL_FILENAME_ENDING" are regarded 
+		as outline files.  Each file should be a tab-indented outline without 
+		blank lines.
+
+		The outline filename format is:
+		"grandparentproject.parentproject.project${OL_FILENAME_ENDING}"
+
+		Parent projects in the filename indicate task dependency, and tasks from
+		"parent${OL_FILENAME_ENDING}" will be blocked from import as long as
+		"parent.child${OL_FILENAME_ENDING}" is present in the todo directory.
+	
+		Next Actions:
+
+		A next action is identified as an active task with no subtask, where 
+		an active task is the first item in the outline or the first subtask
+		of another active task. 
+
+		An item's status as an active task or next action can be modified by
+		various tags described below.
+
+		Outline tags:
+
+		$OL_NEXT_TAG	Marks an outline item as active.
+		$OL_LIST_TAG	Marks every direct subtask of an item as active.
+		$OL_BLOCK_TAG   Blocks the item from being identified as a next action.
+		${OL_WAITFOR_LABEL}:PROJECT   Blocks item as next action until 
+		"+PROJECT" is absent from todo.txt and there is no outline file in the 
+		todo directory corresponding to PROJECT.
+
+	Tag and priority inheritancej:
+
+		Tags are words that have been prepended with the sigil #, @, or +. 
+		Tags with doubled sigils, as in @@context, are inherited by subtasks. 
+		This includes the special outline tags described above, and their 
+		effects. Tasks with priority indicated by, e.g. "(A)" have their 
+		prioirty inherited by any subtasks. 
+	
+ENDHELP
+}
+
+importNextActions(){
+
+	# Adds next action(s) from specified outline into todo.txt
+	# Input: $1 is the name of an outline file in the todo directory
+
+	local outline_filename="$1"
+	local file="$TODO_DIR/$outline_filename"
+
+	
+	# defragment blank lines
+	sed -i.bak -e '/./!d' "$file"
+	[ $TODOTXT_VERBOSE -gt 0 ] && grep "^[[:space:]]*x " "$file"
+	grep "^[[:space:]]*x " "$file" >> "$DONE_FILE"
+	sed -i.bak '/^\s*x /d' "$file"
+
+	[[ ! -e $file ]] && die "No outline files in $TODO_DIR"
+
+	# if file is just ".outline.txt" let's just skip it
+	[[ "$outline_filename" == "${OL_FILENAME_ENDING}" ]] && continue
+
+	# if file is empty, prompt to remove and skip 
+	if [[ ! -s "$TODO_DIR/$outline_filename" ]]; then 
+		echo "$(basename $outline_filename) is empty"
+
+		# check if forcing on
+		if [[ "$TODOTXT_FORCE" = 0 ]]; then
+			echo "remove $(basename "$outline_filename")? (y/n)"
+			read
+			[[ ! "$REPLY" =~ ^[Yy] ]] && return
+		fi
+		rm -fv "$TODO_DIR/$outline_filename" # remove file
+		return
 	fi
 
-	TOTAL=$( sed -n '$ =' "$TODO_FILE" )
-	PADDING=${#TOTAL}
-	awk -v mode="$1" -v numIDs="$numIDs" -v blockNextTags="$BLOCK_NEXT_TAGS" 'BEGIN {
-		FS = "\t"
-		DISPLAY_NEXT=1
-		UPDATE_NEXT=2
-		DISPLAY_ONLY_NEXT=3
-		blockNextLen=split(blockNextTags,blockNextArr,",")
-		main = 1 # main trunk of task tree
-		isprevleaf = 1 # previous task has no subtasks
-		curr=0 # level of indentation on current line
-		blocked=0
-	}
-	{
-		prev=curr           # number of fields current line and previous
-		prevLine=currLine   # text of line
-		curr=NF
-		currLine=$curr
-		prevPriority=currPriority
-		regex="\\([A-Z]\\) "
-		start=match(currLine, regex)
-		currPriority=substr(currLine, start, RLENGTH)
+  printf '%s\n' "$(echo ${outline_filename%%${OL_FILENAME_ENDING}} | tr a-z A-Z):"
 
-		if(start){        # if there is a priority, dont include in currLine
-			currLine=substr(currLine, start+RLENGTH)
-		}
+	# get outline project info
+	project=${outline_filename%%${OL_FILENAME_ENDING}}
 
-		priorities[NF]=currPriority # array of prioriteis by indentation level
-		#inherit priority
-		prevFinalPriority=finalPriority
-		finalPriority=""
-		for (i=1; i<=NF; i++){
-			if (priorities[i]){
-				finalPriority= priorities[i] # "inherited" priority could be current
-			}
-		}
+  # check if child outlines exist in todo folder
+  local matching_files=()
+  matching_files=( $TODO_DIR/${project}${OL_FILENAME_DELIMITER}*${OL_FILENAME_ENDING})
+  if [[ -f ${matching_files[0]} || ${#matching_files[@]} > 1 ]] ; then
+    # child outlines (dependencies) exist in todo dir, skip this one
+    printf '%s\n' "Import blocked by ${matching_files[0]##*/}"
+    return
+  fi
 
-		# get current projects and place in array
-		regex="\\+[a-zA-Z0-9_\\.]+"
-		start = match(currLine, regex)
-		currProj=substr(currLine, start, RLENGTH)
-		substring=currLine
-		while (start){
-			substring=substr(substring, start+RLENGTH)
-			start=match(substring, regex)
-			proj = substr(substring, start, RLENGTH)
-			if(start)
-				currProj = currProj " " proj
-		}
+	# check if todo.txt already has imported item from this outline
+	blocking_items="$(grep -n "outline:${project}" $TODO_FILE)"
+	if [[ -n ${blocking_items[@]} ]]; then
+		echo "Import blocked by ${blocking_items[0]}"
+		return	 
+	fi
 
-		projects[NF] = currProj
-		prevInheritedProjects=inheritedProjects
-		inheritedProjects = ""
-		for (i=1; i<NF; i++){ # inherit all projects from previous levels
-		if(projects[i])
-			inheritedProjects = inheritedProjects " " projects[i]
-		}
+	# get nextActionArray
+	nextActionArray=()
+	getNextActionsFromOutline $outline_filename
+	# loop over nextActionArray and add items, remove from outline
+	for (( j = 0; j < ${#nextActionArray[@]}; j++ )); do  
+		# if not blank, corresponds to next action
+		if [[ "${nextActionArray[$j]}" =~ [A-Za-z0-9]+ ]]; then 
+			# add item to todo.txt
+			$TODO_FULL_SH add "${nextActionArray[$j]} +${project##*${OL_FILENAME_DELIMITER}} outline:${project}" 
+			# remove from outline
+			sed -i.bak "$((j+1))d" $TODO_DIR/$outline_filename
+		fi
+	done
+}
 
-		# get current inheritable contexts and place in array
-		regex="@@[a-zA-Z0-9_\\.]+"
-		start = match(currLine, regex)
-		currContext=substr(currLine, start, RLENGTH)
-		substring=currLine
-		while (start){
-			substring=substr(substring, start+RLENGTH)
-			start=match(substring, regex)
-			context = substr(substring, start, RLENGTH)
-			if(start)
-				currContext = currContext " " context
-		}
+shift # $@ is now args after "ol" or "outline" 
 
-		contexts[NF] = currContext
-		prevInheritedContexts=inheritedContexts
-		inheritedContexts = ""
-		for (i=1; i<NF; i++){ # inherit all heritable contexts from previous levels
-		if(contexts[i])
-			inheritedContexts = inheritedContexts " " contexts[i]
-		}
+case "$1" in
+	"usage")
+		usage
+		;;
+	"help" | "h" )    
+		if [ -t 1 ] ; then # STDOUT is a TTY
+			if which "${PAGER:-less}" >/dev/null 2>&1; then
+				# we have a working PAGER (or less as a default)
+				help | "${PAGER:-less}" && exit 0
+			fi
+		fi
 
+		help | more
+		;;
 
-		# identify if previous task was leaf
-		if (prev >= curr){
-			isprevleaf=1
-		}
+	"import" )
+		for file in $TODO_DIR/*${OL_FILENAME_ENDING}; do
+			# if file doesnt't exist, globbing failed, let's bail
+			[[ ! -f $file ]] && exit
+			importNextActions ${file##*/}
+		done
+		;;
+	"addto" ) 
+		errmsg="Usage: outline|ol append PROJ \"TEXT ...\""
+		shift
+		[[ -n $1 ]] || die $errmsg
+		outlines=()
+		outlines=($TODO_DIR/*$1*${OL_FILENAME_ENDING} )
+		[[ -f ${outlines[0]} ]] || die "Unable to find outline file corresponding to \"$1\""
+		shift
+		echo "Append \"$@\" to which outline:"
+		select file in ${outlines[@]##*/} "CANCEL"; do
+			[[ $file = "CANCEL" ]] && exit
+			echo "$@" >> $TODO_DIR/$file
+			break
+		done
+		;;
+
+	"prepend")	
+
+		errmsg="Usage: outline|ol prepend PROJ \"TEXT ...\""
+		shift
+		[[ -n $1 ]] || die $errmsg
+		outlines=()
+		outlines=($TODO_DIR/*$1*${OL_FILENAME_ENDING} )
+		shift
+		[[ -f ${outlines[0]} ]] || die "Unable to find outline file corresponding to \"$1\""
+
+		select file in ${outlines[@]##*/}; do
+			touch $TODO_DIR/${file}.tmp
+			echo "$@" > $TODO_DIR/${file}.tmp
+			cat $TODO_DIR/$file >> $TODO_DIR/${file}.tmp
+			mv -f $TODO_DIR/${file}.tmp $TODO_DIR/$file 
+			break
+		done
+		;;
+
+	"edit" | "e" )
+		errmsg="Usage: outline|ol edit PROJ"
+		shift
+		[[ -n $1 ]] || die "$errmsg"
+
+		outline_files=()
+		outline_files=( $TODO_DIR/*$1*${OL_FILENAME_ENDING} ) 
+		[[ ! -f ${outline_files[0]} ]] && die "No outline file corresponding to project $1 found."
+
+		if [[ ${#outline_files[@]} > 1 ]] ; then
+			echo "Choose outline to edit:"
+			select file in ${outline_files[@]##*/}; do
+				$EDITOR $TODO_DIR/$file
+				importNextActions ${file} 
+				break
+			done
 		else
-		{
-			isprevleaf=0
-		}
-
-		# identify if previous task was a next action
-		if (isprevleaf && main)
-		{
-			isprevnext=1
-		}
-		else
-		{
-			isprevnext=0
-		}
-
-		if( isprevnext == 1)
-		{
-			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT) {
-				if (blocked == 0) {
-					print prevFinalPriority prevLine prevInheritedProjects prevInheritedContexts
-				}
-			}
-			if (mode==UPDATE_NEXT)
-			{
-				# concatenatee tabs
-				tabs=""
-				for (i=1; i <= prev-1; i++){
-					tabs= tabs "\t"
-				}
-				# print line with id if missing
-				pattern="id:[0-9]+"
-				if (match(prevLine, pattern))
-					print tabs prevPriority prevLine # this line has been processed previously
-				else
-					print tabs prevPriority prevLine  " id:" ++numIDs
-			}
-		}
-		else
-		{
-			if (NR > 1){
-				if (mode==DISPLAY_NEXT)
-					print  "" # blank lines preserve original task line number
-				if (mode==UPDATE_NEXT)
-				{
-					# concatenate tabs
-					tabs=""
-					for (i=1; i <= prev-1; i++){
-						tabs= tabs "\t"
-					}
-					# print line
-					print tabs prevPriority prevLine
-				}
-			}
-		}
-
-		# if prev is isprevleaf, curr is off main trunk
-		if (isprevleaf > 0){
-			main =0
-		}
-		# if there is a project tag, we are starting a new trunk
-		if (currProj){
-			main=1
-		}
-
-		# new root means back on main
-		if (curr==1){
-			main=1
-			blocked=0
-		}
-
-		# next blocking tag, not on main
-		for (i=1; i<=blockNextLen; i++){
-			regex=blockNextArr[i]
-			ind=match($NF, regex)
-			if(ind!=0){
-				main=0
-				blocked=1
-			}
-		}
-	}
-	END {
-		if ( (main==1 && curr > prev) || (blocked==0  && curr==1)){
-			if (mode==DISPLAY_NEXT || mode==DISPLAY_ONLY_NEXT) {
-				if (blocked == 0) {
-					print finalPriority currLine inheritedProjects inheritedContexts
-				}
-			}
-			if (mode==UPDATE_NEXT){
-				tabs=""
-				for (i=1; i<=curr-1; i++)
-				{
-					tabs=tabs "\t"
-				}
-				pattern="id:[0-9]+"
-				if (match(currLine, pattern))
-					print tabs currPriority currLine #previously processed
-				else
-					print tabs currPriority currLine " id:" ++numIDs
-			}
-		}
-		else
-		{
-			if (mode==DISPLAY_NEXT)
-				print ""
-			if (mode==UPDATE_NEXT){
-				tabs=""
-				for (i=1; i<=curr-1; i++)
-				{
-					tabs=tabs "\t"
-				}
-				print tabs currPriority currLine  # not next
-			}
-		}
-		if (mode==UPDATE_NEXT)
-			print "ids:" numIDs
-	}'  $OUTLINE_FILE
-}
-
-# Displays contents of outline
-# $1: line number of node to treat as root node
-#     if null or 0, then document itself is root
-# $2: mode. 1=expand, 0 or null=collapse
-#     expand shows all nodes
-#     collapse shows only direct children
-showoutline()
-{
-	line=$1
-	shift
-
-	expand=$1
-	awk -v line="$line" -v expand="$expand" '
-	BEGIN {
-		FS = "\t";
-		startLevel=0
-		count=0
-	}
-	{
-		if (NR < line)
-			next
-		if (NR == line) # the line to start with
-		{
-			print breadcrumb
-			startlevel=NF
-			print NR " " $NF
-		}
-		else
-		{
-			if (NF <= startlevel)
-			{
-				done=1
-			}
-			if (done)
-			{
-				next
-			}
-
-			text=$NF
-			numTabs=NF-startlevel
-			tabs=""
-			for(i=1; i<=numTabs; i++)
-			{
-				if (i>1)
-					tabs= tabs "."
-				tabs=tabs "\t"
-			}
-			text=NR tabs text
-			if (expand) # show all subtasks
-				print text
-			else
-			# show only direct subtasks
-			if (NF==startlevel+1)
-			{
-				count++
-				textarray[count] = text
-			}
-			else
-			extraarray[count] = extraarray[count] "."
-		}
-	}
-	END {
-		if (!expand){
-			for (i=1; i <= count; i++) {
-				if (extraarray[i]){
-					textarray[i]= textarray[i] " [" extraarray[i] "]"
-				}
-				print textarray[i]
-			}
-		}
-	}' $OUTLINE_FILE
-}
-
-# Searches done.txt for completed task ids
-# Removes completed tasks from outline.txt
-# Gets last highest id from outline.txt.data
-# Gives new ids to any unlabeled next actions
-#   in outline.txt and updates outline.txt.data
-# Copies tasks with id's from outline.txt to
-#   todo.txt unless task with that id
-#   already is already present
-exportTasks(){
-# archive todo.txt done items
-todo.sh archive
-# get list of done and in process ids
-		doneIDs=$(grep -oE "\bid:[0-9]+\b" $DONE_FILE | tr '\n' ',' | sed 's/,$//')   # in done.txt
-# blockedIDs=$(grep -oE "\bid:[0-9]+\b" $TODO_FILE | tr '\n' ',' | sed 's/,$//') # in todo.txt
-echo "Removing archived tasks from outline"
-
-# remove done id's from outline.txt
-awk -v doneIDs="$doneIDs" '
-BEGIN {
-	FS="\t"
-	n=split(doneIDs, array, ",")
-}
-{
-	for (i=1; i<=n; i++){
-		pattern="\\y" array[i] "\\y"
-		matched=match($NF, pattern)
-		if (matched){
-			foundmatch=1
-		}
-	}
-	if(foundmatch){
-		# "do nothing"
-	}
-	else
-	{
-		# print line
-		text=""
-		for (j=1; j<NF; j++ )
-		{
-			text=text "\t"
-		}
-		text=text $NF
-		print text
-	}
-	foundmatch=0
-}
-'  $OUTLINE_FILE  > $TEMP_FILE
-cat $TEMP_FILE  > $OUTLINE_FILE
-
-echo "Updating ids in outline"
-
-# get next actions into todo.txt
-# id all next actions
-next $UPDATE_NEXT "$OUTLINE_FILE" > $TEMP_FILE
-
-#  store highest id in data file
-grep -Eo "ids:[0-9]+" $TEMP_FILE > $DATA_FILE
-
-# copy temp file to outline, minus id line
-sed '/ids:[0-9][0-9]*/d' $TEMP_FILE > $OUTLINE_FILE
-rm $TEMP_FILE
-# id's are now updated with outline.txt next actions
-
-echo "Copying next action tasks to todo.txt"
-# copy ID'd tasks to todo.txt unless blocked
-
-next $DISPLAY_ONLY_NEXT > $TEMP_FILE
-cat $TEMP_FILE > $TODO_FILE
-}
-
-
-usage()
-{
-	cat <<EndUsage
-outline
- Usage: todo.sh outline action [options]
-        todo.sh ol action [options]
-
- Note: tab indented outline, outline.txt, should be present
-      in todo.txt directory
-
- Actions:
-    add LINE_NUMBER INDENTATION "Task text"
-    a LINE_NUMBER INDENTATION "Task text"
-        Adds task text to line LINE_NUMBER with INDENTATION tabs
-
-    addafter LINE_NUMBER "Task text"
-    aa LINE_NUMBER "Task text"
-        Adds line of text in outline.txt below
-        line number LINE_NUMBER, with same indentation
-
-    addbefore LINE_NUMBER "Task text"
-    ab LINE_NUMBER "Task text"
-        Adds line of text in outline.txt before
-        line number LINE_NUMBER, with same indentation
-
-    addsubtask LINE_NUMBER "Task text"
-    as LINE_NUMBER "Task text"
-        Adds line of text in outline.txt in line below
-        with additional indentation
-
-    export
-    e
-        Removes next actions from outline.txt which have been completed
-        Labels any new next actions in outline.txt with id:<number>.
-        Copies next actions from outline.txt to todo.txt unless already present
-        Removes items from todo.txt that are no longer next actions in outline.txt
-
-    import
-    i
-        Copies new items from todo.txt to outline.txt
-
-    list [LINE_NUMBER]
-    ls [LINE_NUMBER]
-        If LINE_NUMBER is specified, displays immediate subtasks
-        of LINE_NUMBER. Otherwise displays top level tasks.
-
-    listall [LINE_NUMBER]
-    lsa [LINE_NUMBER]
-        Displays all subtasks of LINE_NUMBER. If LINE_NUMBER
-        not specified, displays entire outline.
-
-    move SRC_LINE DEST_LINE [NUM_TABS]
-    mv SRC_LINE DEST_LINE [NUM_TABS]
-        Moves source line to destination line in outline.txt
-        If indentation is not specified, original indentation is preserved
-
-    next
-    n ["search text"]
-        Displays next actions in outline.txt containing optional "search text"
-        Each top level task and item tagged with a project (i.e. "+project") 
-        	has one next action: the first task with no subtask beneath it or 
-        	sibling task above it
-
-    rm LINE_NUMBER
-    del LINE_NUMBER
-         Removes specified line from outlook.txt
-
-    sync
-    s
-        Removes next actions from outline.txt which have been completed
-        Copies new items from todo.txt to outline.txt
-        Labels any new next actions in outline.txt with id:<number>.
-        Copies next actions from outline.txt to todo.txt unless already present
-        Removes items from todo.txt that are no longer next actions in outline.txt
-
-    tab LINE_NUMBER NUM_TABS
-    t LINE_NUMBER NUM_TABS
-        Adjusts indentation of specified line to specified tabs
-EndUsage
-	exit 1
-}
-
-
-case $action in
-
-	"add" | "a" )
-
-task=$@
-
-echo $task >> $OUTLINE_FILE
-
-;;
-
-"addat" | "at" )
-
-line=$1
-shift
-
-if [ -z "$line" ]
-	then
-	echo "Error: No line number specified"
-	usage
-fi
-
-indent=$1
-shift
-
-re='^[0-9]+$' # http://stackoverflow.com/questions/806906/how-do-i-test-if-a-variable-is-a-number-in-bash
-if ! [[ $indent =~ $re ]] ; then
-	echo "Error: Indentation not specified as number";
-	echo ""
-	usage
-fi
-
-task=$@
-
-cat $OUTLINE_FILE  > $TEMP_FILE
-awk -v line="$line" -v indent="$indent" -v task="$task" '
-BEGIN{
-	FS="\t"
-	indent++
-}
-{
-	if (NR==line)# when NR matches line number
-		{
-			numtabs=indent # get number of tabs
-			text=""
-			for (i=1; i<numtabs; i++)
-			{
-				text=text "\t"
-			}
-			text=text task
-			print text
-		}
-		print # print each line
-	}
-	' $TEMP_FILE > $OUTLINE_FILE
-
-	;;
-
-	"addafter" | "aa")
-# addafter | aa [#TASK] [TERM]
-
-line=$1
-shift
-task=$@
-
-if [ -z "$line" ]
-	then
-	echo "Error: No line number specified"
-	usage
-fi
-
-cat $OUTLINE_FILE  > $TEMP_FILE
-awk -v line="$line" -v task="$task" '
-BEGIN{
-	FS="\t"
-}
-{
-	if (NR==line)# when NR matches line number create text with correct tabs
-		{
-			tabs=NF # get number of tabs
-			text=""
-			for (i=1; i<tabs; i++)
-			{
-				text=text "\t"
-			}
-			text=text task
-		}
-		if (NR > line && NF <= tabs && printed != 1)
-			{
-				# only print after skipping any subtasks
-				print text
-				printed=1 # make a record of fact that we printed item
-			}
-			print # print each line
-		}
-		END {
-			if (printed==0)
-				print text #in case we never were able to print text
-			}
-			' $TEMP_FILE  > $OUTLINE_FILE
+			$EDITOR ${outline_files[0]}
+			importNextActions ${outline_files[0]##*/} 
+		fi
+				
 			;;
 
-			"addbefore" | "ab" )
-# addbefore | ab <line> <task>
-line=$1
-shift
-task=$@
-
-if [ -z "$line" ]
-	then
-
-	usage
-fi
-
-# in outline.txt adds task to row after <line>
-cat $OUTLINE_FILE  > $TEMP_FILE
-awk -v line="$line" -v task="$task" '
-BEGIN{
-	FS="\t"
-}
-{
-	if (NR==line)# when NR matches line number
-		{
-			numtabs=NF # get number of tabs
-			text=""
-			for (i=1; i<NF; i++)
-			{
-				text=text "\t"
-			}
-			text=text task
-			print text
-		}
-		print # print each line
-	}
-	' $TEMP_FILE > $OUTLINE_FILE
-	;;
-
-	"addsubtask" | "as" )
-# addsubtask |as <line> <task>
-line=$1
-shift
-task=$@
-
-if [ -z "$line" ]
-	then
-	echo "Error: No line number specified"
-	usage
-fi
-
-# in outline.txt adds task to row after <line>
-cat $OUTLINE_FILE  > $TEMP_FILE
-awk -v line="$line" -v task="$task" '
-BEGIN{
-	FS="\t"
-}
-{
-	print # print each line
-	if (NR==line)# when NR matches line number
-		{
-			numtabs=NF # get number of tabs
-			text=""
-			for (i=1; i<=NF; i++)
-			{
-				text=text "\t"
-			}
-			text=text task
-			print text
-		}
-	}
-	' $TEMP_FILE  > $OUTLINE_FILE
-	;;
-
-"do" | "d" )
-# do [LINE]
-line=$1
-
-if [ -z "$line" ]
-	then
-	echo "Error: No line number specified"
-	echo "Usage: todo.sh outline do [LINE_NUMBER]"
-	exit
-fi
-
-echo "OVR_TODOTXT_FORCE=$OVR_TODOTXT_FORCE"
-
-# remove tabs at $line
-awk -v line="$line" 'BEGIN{
-	FS="\t"
-}{
-	if (NR==line)
-		print $NF
-	else
-		print
-}' $OUTLINE_FILE  > $TEMP_FILE
-cat $TEMP_FILE  > $OUTLINE_FILE
-
-# add newline to todo.txt to avoid no newline errors
-echo "" >> $TODO_FILE
-
-# use todo.sh mv function
-todo.sh -f mv $line $TODO_FILENAME $OUTLINE_FILENAME
-length=$(cat $TODO_FILE | wc -l)
-length=$((length))
-# use todo.sh do function
-todo.sh -f do $length
-;;
-
-"export" | "e" )
-# mergenext
-exportTasks
-;;
-
-"import" | "i" )
-# import|i
-# moves todo.txt items without id to outline
-# get non id'd tasks from todo.txt, mv to outline.text
-
-echo "" >> $OUTLINE_FILE # prevent no newline errors
-grep -v -E "id:[0-9]+" $TODO_FILE >> $OUTLINE_FILE
-grep -E "id:[0-9]+"  $TODO_FILE  > $TEMP_FILE
-cat $TEMP_FILE > $TODO_FILE
-;;
-
-"list" | "ls" )
-# display | d <line>
-# display immediate subtasks of <line>
-# subtasks with more tasks will show [...] at end
-# get non id'd tasks from todo.txt, mv to outline.text
-
-# TODO WHERE DID THIS COME FROM
-# grep -v -E "id:[0-9]+" $TODO_FILE >> $OUTLINE_FILE
-# sed "/id:[0-9]+/!d" $TODO_FILE
-
-expand=0
-line=$1
-showoutline $line 0
-;;
-
-"listall" | "lsa" )
-# expand | e <line>
-# display all subtasks of id
-expand=1
-line=$1
-showoutline "$line" 1
-;;
-
-"move" | "mv" )
-# move SRC_LINE DEST_LINE
-
-src=$1
-shift
-
-if [ -z "$src" ]
-	then
-	echo "Error: No source line number specified"
-	usage
-fi
-
-dest=$1
-shift
-
-if [ -z "$dest" ]
-	then
-	echo "Error: No destination line number specified"
-	usage
-fi
-
-if [ $src -gt $TOTAL ]
-	then
-	echo "Error: Source line too large"
-	usage
-fi
-
-if [ $dest -gt $TOTAL ]
-	then
-	echo "Error: Destination too large"
-	usage
-fi
-
-indent=$1
-
-if [ -z "$indent" ]
-	then
-# get src text including tabs
-text=$(sed "${src}q;d" $OUTLINE_FILE)
-else
-	text=$(awk -v line="$src" '
-		BEGIN{
-			FS="\t"
-		}
-		{
-			if (NR==line)
-				{
-					print $NF
-				}
-			}
-			' $OUTLINE_FILE)
-fi
-
-# delete line,  > temp
-sed "${src}d;" $OUTLINE_FILE > $TEMP_FILE
-
-# insert line int o temp
-awk -v line="$dest" -v task="$text" -v indent="$indent" '
-BEGIN{
-	FS="\t"
-	indent++
-}
-{
-	if (NR==line)# when NR matches line number
-		{
-			if (indent)
-				{
-					numtabs=indent # get number of tabs
-					text=""
-					for (i=1; i<numtabs; i++)
-					{
-						text=text "\t"
-					}
-					text=text task
-					print text
-				}
-			else # no indent specified
-				{
-					print task
-				}
-			}
-
-			print # print each line
-		}
-		END {
-		if (line > FNR )
-			{
-				if (indent)
-					{
-						numtabs=indent # get number of tabs
-						text=""
-						for (i=1; i<numtabs; i++)
-						{
-							text=text "\t"
-						}
-						text=text task
-						print text
-					}
-				else # no indent specified
-					{
-						print task
-					}
-				}
-			}
-			' $TEMP_FILE  > $OUTLINE_FILE
+		"ls" )
+			outlines=()
+			outlines=($TODO_DIR/*${OL_FILENAME_ENDING})
+			[[ ! -f ${outlines[0]} ]] && echo "No outline files ending in ${OL_FILENAME_ENDING} in todo directory"
+			printf '%s\n' ${outlines[@]##*/}
 			;;
 
-"next" | "n" )
-	# no search term
-	[[ -z "$1" ]] && next $DISPLAY_NEXT | TODOTXT_VERBOSE=0 _format '' "$PADDING" "$@" # use builtin _format function to print
+		"mv" )
 
-	# search term present
-	[[ -n "$1" ]] && next $DISPLAY_NEXT| grep $1 | TODOTXT_VERBOSE=0 _format '' "$PADDING" "$@" # use builtin _format function to print
-;;
+			errmsg="Usage: outline|ol mv #ITEM PROJ"
+			shift
+			[[ $1 =~ ^[0-9]+$ ]] || die "$errmsg"
+			item=$1
+			shift
 
-"rm" | "del" )
-# rm LINE_NUMBER
-line=$1
+			[[ -n $1 ]] || die "$errmsg"
 
-if [ -z "$line" ]
-	then
-	echo "Error: No line number specified"
-	usage
-fi
+			outline_files=()
+			outline_files=( $TODO_DIR/*$1*${OL_FILENAME_ENDING} ) 
+			[[ ! -f ${outline_files[0]} ]] && die "No outline file corresponding to project $1 found."
+			getTodo $item
+			echo "$(getPrefix $TODO_FILE): $todo"
+			echo "Select target outline:"
+			select file in ${outline_files[@]##*/} "CANCEL"; do
+				[[ $file = "CANCEL" ]] && exit
+				outline_filename=$file
+				break
+			done
+			label=$(head -n$item $TODO_FILE | tail -n1 | grep -o "outline:.*" )
+			while [[ -n $label ]]; do 
+				$TODO_FULL_SH rm ${item} ${label} # todo ITEM outline:PROJ
+				label=$(head -n$item $TODO_DIR/$outline_filename| tail -n1 | grep -o "outline:.*") 
+			done
+			$TODO_FULL_SH -f mv $item $outline_filename
 
-read -p "Are you sure? (y/n) " -n 1 -r
-echo    # (optional) move to a new line
-if [[ $REPLY =~ ^[Yy]$ ]]
-	then
-	sed "${line}d" $OUTLINE_FILE > $TEMP_FILE
-	cat $TEMP_FILE > $OUTLINE_FILE
-fi
-;;
+			;;
+		"mkol" )
+			errmsg="Usage: outline|ol mkol [#ITEM] PROJ"
+			shift
 
-"sync" | "s" )
+			# get todo item, if given
+			item=""
+			if [[ "$1" =~ ^[0-9]+$ ]]; then
+				item="$1"
+				shift
+			fi
 
-# put non id'd tasks into outline
-echo "Moving new items from todo list to outline"
-todo.sh outline import
+			[[ -n $1 ]] || die "$errmsg"
 
-# put next actions into todo.txt
-exportTasks
-;;
 
-"tab" | "t" )
-# tab | t LINE_NUMBER INDENT
-# adjusts indentation at LINE_NUMBER to INDENT tabs
+			[[ "$1" =~ "${OL_FILENAME_DELIMITER}" ]] && die "Outline project names with \"${OL_FILENAME_DELIMITER}\" not permitted"
 
-line=$1
-shift
+			outline_files=()
+			outline_files=( $TODO_DIR/*${OL_FILENAME_ENDING} ) 
 
-if [ -z "$line" ]
-	then
-	echo "Error: No line number specified"
-	usage
-fi
+			if [[ -f ${outline_files[0]} ]] ; then 
+				echo "Choose parent project outline:"
+				select file in ${outline_files[@]##*/} "NONE"; do
+					if [[ $file == "NONE" ]] ; then
+						outline_file="$TODO_DIR/${1}${OL_FILENAME_ENDING}"
+						break
+					else
+						file=${file%%${OL_FILENAME_ENDING}}
+						outline_file=${file}${OL_FILENAME_DELIMITER}${1}${OL_FILENAME_ENDING}
+						break
+					fi
+				done
+			else 
+				outline_file="${1}${OL_FILENAME_ENDING}"
+			fi
 
-indent=$1
-shift
+		 touch $TODO_DIR/$outline_file
+			if [[ -f "$TODO_DIR/$outline_file" ]] ; then
+				echo "$outline_file created"
+				[[ -z $item ]] && $TODO_FULL_SH mv $item $outline_file
+			else
+				echo "Unable to create $outline_file"
+			fi
+			;;
 
-if [ -z "$indent" ]
-	then
-	echo "Error: No line number specified"
-	usage
-fi
-
-# get task text
-
-# in outline.txt indent line
-cat $OUTLINE_FILE  > $TEMP_FILE
-awk -v line="$line" -v indent="$indent" '
-BEGIN{
-	FS="\t"
-	indent++
-}
-{
-	if (NR==line)# when NR matches line number
-		{
-			task = $NF
-			numtabs=indent # get number of tabs
-			text=""
-			for (i=1; i<numtabs; i++)
-			{
-				text=text "\t"
-			}
-			text=text task
-			print text
-		}
-	else
-		print # print each line
-	}
-	' $TEMP_FILE  > $OUTLINE_FILE
-	;;
-
-"help" | "h" )
-usage | less
-;;
-
-"usage" | * )
-
-cat <<EndUsage
-  outline:
-    outline action [ARG 1] [ARG 2]
-    ol action [ARG 1] [ARG 2]
-    Use "todo.sh outline help" for more information
-EndUsage
-;;
-
-esac
-
-# clean up any empty lines in todo.txt or outline.txt
-
-awk 'NF > 0' $TODO_FILE > $TEMP_FILE
-cat $TEMP_FILE > $TODO_FILE
-
-awk 'NF > 0' $OUTLINE_FILE > $TEMP_FILE
-cat $TEMP_FILE > $OUTLINE_FILE
-
-rm -f $TEMP_FILE
+		* )
+			usage
+			;;
+	esac
