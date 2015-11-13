@@ -1,7 +1,6 @@
 #! /bin/bash 
 shopt -s extglob # for case pattern matching 
 
-
 # CONFIG
 
 # AUTO-IMPORT NEXT ACTIONS
@@ -208,7 +207,7 @@ else
 
 usage(){
     cat <<ENDUSAGE
-	outline|ol mkol PROJECT 
+	outline|ol mkol PROJECT [#ITEM]
 	outline|ol mv #ITEM PROJECT
 	outline|ol edit PROJECT
 	outline|ol prepend PROJECT "TEXT..."
@@ -386,6 +385,7 @@ case "$1" in
 			echo "$@" >> $TODO_DIR/$file
 			break
 		done
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
 		;;
 
 	"prepend")	
@@ -405,6 +405,7 @@ case "$1" in
 			mv -f $TODO_DIR/${file}.tmp $TODO_DIR/$file 
 			break
 		done
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
 		;;
 
 	"edit" | "e" )
@@ -420,95 +421,89 @@ case "$1" in
 			echo "Choose outline to edit:"
 			select file in ${outline_files[@]##*/}; do
 				$EDITOR $TODO_DIR/$file
-				importNextActions ${file} 
 				break
 			done
 		else
 			$EDITOR ${outline_files[0]}
-			importNextActions ${outline_files[0]##*/} 
 		fi
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
 				
-			;;
+		;;
 
-		"ls" )
-			outlines=()
-			outlines=($TODO_DIR/*${OL_FILENAME_ENDING})
-			[[ ! -f ${outlines[0]} ]] && echo "No outline files ending in ${OL_FILENAME_ENDING} in todo directory"
-			printf '%s\n' ${outlines[@]##*/}
-			;;
+	"ls" )
+		outlines=()
+		outlines=($TODO_DIR/*${OL_FILENAME_ENDING})
+		[[ ! -f ${outlines[0]} ]] && echo "No outline files ending in ${OL_FILENAME_ENDING} in todo directory"
+		printf '%s\n' ${outlines[@]##*/}
+		;;
 
-		"mv" )
+	"mv" )
 
-			errmsg="Usage: outline|ol mv #ITEM PROJ"
-			shift
-			[[ $1 =~ ^[0-9]+$ ]] || die "$errmsg"
-			item=$1
-			shift
+		errmsg="Usage: outline|ol mv #ITEM PROJ"
+		shift
+		[[ $1 =~ ^[0-9]+$ ]] || die "$errmsg"
+		item=$1
+		shift
 
-			[[ -n $1 ]] || die "$errmsg"
+		[[ -n $1 ]] || die "$errmsg"
 
-			outline_files=()
-			outline_files=( $TODO_DIR/*$1*${OL_FILENAME_ENDING} ) 
-			[[ ! -f ${outline_files[0]} ]] && die "No outline file corresponding to project $1 found."
-			getTodo $item
-			echo "$(getPrefix $TODO_FILE): $todo"
-			echo "Select target outline:"
-			select file in ${outline_files[@]##*/} "CANCEL"; do
-				[[ $file = "CANCEL" ]] && exit
-				outline_filename=$file
-				break
+		outline_files=()
+		outline_files=( $TODO_DIR/*$1*${OL_FILENAME_ENDING} ) 
+		[[ ! -f ${outline_files[0]} ]] && die "No outline file corresponding to project $1 found."
+		getTodo $item
+		echo "$(getPrefix $TODO_FILE): $todo"
+		echo "Select target outline:"
+		select file in ${outline_files[@]##*/} "CANCEL"; do
+			[[ $file = "CANCEL" ]] && exit
+			outline_filename=$file
+			break
+		done
+		label=$(head -n$item $TODO_FILE | tail -n1 | grep -o "outline:.*" )
+		while [[ -n $label ]]; do 
+			$TODO_FULL_SH rm ${item} ${label} # todo ITEM outline:PROJ
+			label=$(head -n$item $TODO_DIR/$outline_filename| tail -n1 | grep -o "outline:.*") 
+		done
+		$TODO_FULL_SH -f mv $item $outline_filename
+		[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+		;;
+	"mkol" )
+		errmsg="Usage: outline|ol mkol PROJ [#ITEM]"
+		shift
+
+		[[ -n $1 ]] || die "$errmsg"
+
+		[[ "$1" =~ "${OL_FILENAME_DELIMITER}" ]] && die "Outline project names with \"${OL_FILENAME_DELIMITER}\" not permitted"
+
+		outline_files=()
+		outline_files=( $TODO_DIR/*${OL_FILENAME_ENDING} ) 
+
+		if [[ -f ${outline_files[0]} ]] ; then 
+			echo "Choose parent project outline:"
+			select file in ${outline_files[@]##*/} "NONE"; do
+				if [[ $file == "NONE" ]] ; then
+					outline_file="${1}${OL_FILENAME_ENDING}"
+					break
+				else
+					file=${file%%${OL_FILENAME_ENDING}}
+					outline_file=${file}${OL_FILENAME_DELIMITER}${1}${OL_FILENAME_ENDING}
+					break
+				fi
 			done
-			label=$(head -n$item $TODO_FILE | tail -n1 | grep -o "outline:.*" )
-			while [[ -n $label ]]; do 
-				$TODO_FULL_SH rm ${item} ${label} # todo ITEM outline:PROJ
-				label=$(head -n$item $TODO_DIR/$outline_filename| tail -n1 | grep -o "outline:.*") 
-			done
-			$TODO_FULL_SH -f mv $item $outline_filename
-
-			;;
-		"mkol" )
-			errmsg="Usage: outline|ol mkol [#ITEM] PROJ"
-			shift
-
-			# get todo item, if given
-			item=""
-			if [[ "$1" =~ ^[0-9]+$ ]]; then
-				item="$1"
-				shift
-			fi
-
-			[[ -n $1 ]] || die "$errmsg"
-
-
-			[[ "$1" =~ "${OL_FILENAME_DELIMITER}" ]] && die "Outline project names with \"${OL_FILENAME_DELIMITER}\" not permitted"
-
-			outline_files=()
-			outline_files=( $TODO_DIR/*${OL_FILENAME_ENDING} ) 
-
-			if [[ -f ${outline_files[0]} ]] ; then 
-				echo "Choose parent project outline:"
-				select file in ${outline_files[@]##*/} "NONE"; do
-					if [[ $file == "NONE" ]] ; then
-						outline_file="$TODO_DIR/${1}${OL_FILENAME_ENDING}"
-						break
-					else
-						file=${file%%${OL_FILENAME_ENDING}}
-						outline_file=${file}${OL_FILENAME_DELIMITER}${1}${OL_FILENAME_ENDING}
-						break
-					fi
-				done
-			else 
-				outline_file="${1}${OL_FILENAME_ENDING}"
-			fi
+		else 
+			outline_file="${1}${OL_FILENAME_ENDING}"
+		fi
 
 		 touch $TODO_DIR/$outline_file
-			if [[ -f "$TODO_DIR/$outline_file" ]] ; then
-				echo "$outline_file created"
-				[[ -z $item ]] && $TODO_FULL_SH mv $item $outline_file
-			else
-				echo "Unable to create $outline_file"
-			fi
-			;;
+		if [[ -f "$TODO_DIR/$outline_file" ]] ; then
+			echo "$outline_file created"
+			shift
+			[[ "$1" =~ ^[0-9]+$ ]] && $TODO_FULL_SH mv $1 $outline_file 
+			$EDITOR $TODO_DIR/$outline_file
+			[[ $OL_AUTO_IMPORT == "1" ]] && $TODO_FULL_SH outline import
+		else
+			echo "Unable to create $outline_file"
+		fi
+		;;
 
 		* )
 			usage
