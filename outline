@@ -211,7 +211,7 @@ usage(){
 	outline|ol mv #ITEM PROJECT
 	outline|ol edit PROJECT
 	outline|ol prepend PROJECT "TEXT..."
-	outline|ol addto PROJECT "TEXT..."
+	outline|ol addto|append PROJECT "TEXT..."
 	outline|ol import
 	outline|ol help
 ENDUSAGE
@@ -371,7 +371,7 @@ case "$1" in
 			importNextActions ${file##*/}
 		done
 		;;
-	"addto" ) 
+	"addto" | "append" ) 
 		errmsg="Usage: outline|ol append PROJ \"TEXT ...\""
 		shift
 		[[ -n $1 ]] || die $errmsg
