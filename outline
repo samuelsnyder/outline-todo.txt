@@ -311,24 +311,27 @@ importNextActions(){
 		return
 	fi
 
-  printf '%s\n' "$(echo ${outline_filename%%${OL_FILENAME_ENDING}} | tr a-z A-Z):"
-
 	# get outline project info
 	project=${outline_filename%%${OL_FILENAME_ENDING}}
 
-  # check if child outlines exist in todo folder
-  local matching_files=()
-  matching_files=( $TODO_DIR/${project}${OL_FILENAME_DELIMITER}*${OL_FILENAME_ENDING})
-  if [[ -f ${matching_files[0]} || ${#matching_files[@]} > 1 ]] ; then
-    # child outlines (dependencies) exist in todo dir, skip this one
-    printf '%s\n' "Import blocked by ${matching_files[0]##*/}"
-    return
-  fi
+	# check if child outlines exist in todo folder
+	local matching_files=()
+	matching_files=( $TODO_DIR/${project}${OL_FILENAME_DELIMITER}*${OL_FILENAME_ENDING})
+	if [[ -f ${matching_files[0]} || ${#matching_files[@]} > 1 ]] ; then
+		# child outlines (dependencies) exist in todo dir, skip this one
+		if [[ $TODOTXT_VERBOSE -gt 1 ]]; then
+			printf '%s\n' "$(echo ${outline_filename%%${OL_FILENAME_ENDING}} | tr a-z A-Z): Import blocked by ${matching_files[0]##*/}"
+		fi
+		return
+	fi
 
 	# check if todo.txt already has imported item from this outline
 	blocking_items="$(grep -n "outline:${project}" $TODO_FILE)"
 	if [[ -n ${blocking_items[@]} ]]; then
-		echo "Import blocked by ${blocking_items[0]}"
+		if [[ $TODOTXT_VERBOSE -gt 1 ]]; then
+			echo "$(echo ${outline_filename%%${OL_FILENAME_ENDING}} | tr a-z A-Z): Import blocked by ${blocking_items[0]}"
+		fi
+
 		return	 
 	fi
 

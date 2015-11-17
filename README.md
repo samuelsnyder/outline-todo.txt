@@ -1,7 +1,7 @@
 outline-todo.txt
 ================
 
-**outline** is an extension for command line [todo.txt](https://github.com/ginatrapani/todo.txt-cli) that allows you to plan your projects in a tab-indented outline, and sync only the *next actions* with todo.txt. Actions for editing and displaying your outline, syncing outline.txt with todo.txt, and completing tasks directly from the outline, are also provided.
+**outline** is an extension for command line [todo.txt](https://github.com/ginatrapani/todo.txt-cli) that allows you to plan your projects in a tab-indented outline, and sync only the *[next actions](https://hamberg.no/gtd/#the-next-actions-list)* with todo.txt. Actions for editing and displaying your outline, syncing outline.txt with todo.txt, and completing tasks directly from the outline, are also provided.
 
 A *next action* is defined as the first subtask with no subtask of its own under 1) a root task or 2) a task tagged with a project (eg. "+project")--unless the task or parent tree is tagged with *@someday* or *@maybe* (or as otherwise configured).
 
