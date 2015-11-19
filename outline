@@ -4,8 +4,7 @@ shopt -s extglob # for case pattern matching
 # CONFIG
 
 # AUTO-IMPORT NEXT ACTIONS
-OL_AUTO_IMPORT=1 # Automatically import next actions of each outline into todo.txt, provided that
-				# todo.txt does not contain any tasks containing "outline:PROJECT"
+OL_AUTO_IMPORT=1 # Automatically import after every action that changes an outline
 
 ## TEXT EDITOR ##
 # When creating a new outline file ($file) with the outline command,
@@ -207,33 +206,61 @@ else
 
 usage(){
     cat <<ENDUSAGE
+	outline|ol addto|append PROJECT "TEXT..."
+	outline|ol edit PROJECT
+	outline|ol help
+	outline|ol import
 	outline|ol mkol PROJECT [#ITEM]
 	outline|ol mv #ITEM PROJECT
-	outline|ol edit PROJECT
 	outline|ol prepend PROJECT "TEXT..."
-	outline|ol addto|append PROJECT "TEXT..."
-	outline|ol import
-	outline|ol help
 ENDUSAGE
 }
 
 help(){
     cat <<ENDHELP
-	outline|ol 
-		For each outline that does not have a next action already in todo.txt,
-		import next action(s) into to todo.txt. The presence of a task from a child
-		outline in todo.txt will also block import.
+	outline|ol addto|append PROJECT "TEXT..."
+		Append TEXT to outline with name containing PROJECT.
+		
+		If more than one outline name contains PROJECT, select outline
+		from menu.
+		
+	outline|ol edit PROJECT
+		Open outline with name containing PROJECT using program specified
+		in \$EDITOR.
+		
+		If more than one outline name contains PROJECT, select outline
+		from menu.
 
-	outline|ol PROJECT [#ITEM] [PARENT_PROJECT]
-		Create and edit an outline file for PROJECT, and move task #ITEM from 
-		todo.txt to the outline. Items from the outline for 
-		PARENT_PROJECT will be blocked from import into todo.txt while 
-		the PROJECT outline is present in the todo directory.
-		If the outline already exists, move task #ITEM to the outline and open
-		with their editor.
-		After the editor is closed, next actions will be identified and moved to
+	outline|ol help
+		Display this page
+		
+	outline|ol import
+		Next actions, as defined below, are imported into todo.txt from outline
+		files in todo directory, unless blocked by an existing subtask.
+		
+	outline|ol mkol PROJECT [#ITEM]
+		Create an outline file corresponding to PROJECT, and move task at line
+		#ITEM in todo.txt to the outline. A menu to select a parent outline from
+		the existing outlines is presented.	
+
+	outline|ol mv #ITEM PROJECT
+		Move todo task at #ITEM in todo.txt to outline with name containing 
+		PROJECT.
+
+		If more than one outline name contains PROJECT, select outline
+		from menu.
+
+	outline|ol prepend PROJECT "TEXT..."
+		Add TEXT as a line to the begging of outline with name containing PROJECT.
+	
+		If more than one outline name contains PROJECT, select outline
+		from menu.
 
 	outline|ol import
+		Imports next action(s) from outlines into todo.txt. For each outline,
+		the existence of a child outline in the todo directory, or of a task
+		in todo.txt labeled as belonging to this outline or a child outline
+		will block import.
 
 		Outline files:
 
@@ -294,7 +321,7 @@ importNextActions(){
 
 	[[ ! -e $file ]] && die "No outline files in $TODO_DIR"
 
-	# if file is just ".outline.txt" let's just skip it
+	# if file is just ".ol.txt" let's just skip it
 	[[ "$outline_filename" == "${OL_FILENAME_ENDING}" ]] && continue
 
 	# if file is empty, prompt to remove and skip 
@@ -343,7 +370,7 @@ importNextActions(){
 		# if not blank, corresponds to next action
 		if [[ "${nextActionArray[$j]}" =~ [A-Za-z0-9]+ ]]; then 
 			# add item to todo.txt
-			$TODO_FULL_SH add "${nextActionArray[$j]} +${project##*${OL_FILENAME_DELIMITER}} outline:${project}" 
+			$TODO_FULL_SH add "${nextActionArray[$j]} outline:${project}" 
 			# remove from outline
 			sed -i.bak "$((j+1))d" $TODO_DIR/$outline_filename
 		fi
@@ -476,6 +503,7 @@ case "$1" in
 		[[ -n $1 ]] || die "$errmsg"
 
 		[[ "$1" =~ "${OL_FILENAME_DELIMITER}" ]] && die "Outline project names with \"${OL_FILENAME_DELIMITER}\" not permitted"
+		[[ "$1" =~ [[:space:]] ]] && die "Spaces not permitted in outline project name."
 
 		outline_files=()
 		outline_files=( $TODO_DIR/*${OL_FILENAME_ENDING} ) 
