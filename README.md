@@ -1,148 +1,141 @@
 outline-todo.txt
 ================
 
-**outline** is an extension for command line [todo.txt](https://github.com/ginatrapani/todo.txt-cli) that allows you to plan your projects in a tab-indented outline, and sync only the *[next actions](https://hamberg.no/gtd/#the-next-actions-list)* with todo.txt. Actions for editing and displaying your outline, syncing outline.txt with todo.txt, and completing tasks directly from the outline, are also provided.
+**outline** is an extension for command line [todo.txt](https://github.com/ginatrapani/todo.txt-cli) that allows you to plan your projects in tab-indented outlines, and sync only the *[next actions](https://hamberg.no/gtd/#the-next-actions-list)* with todo.txt. 
 
-A *next action* is defined as the first subtask with no subtask of its own under 1) a root task or 2) a task tagged with a project (eg. "+project")--unless the task or parent tree is tagged with *@someday* or *@maybe* (or as otherwise configured).
+A *next action* is defined as the first task with no subtask of its own in an outline with no dependent outlines.
 
-*Next actions* inherit the project tags and the nearest priority tag from their parent tree. Context tags ("@context") are not inherited unless written with two "@" symbols ("@@heritablecontext").
+*Next actions* inherit their parent task's priority, and any tags iwth a doubled sigil (e.g. ##tag, @@context, ++project).
 
 Example
 ======
 
-The following example illustrates how **outline** identifies *next actions* and synchronizes *todo.txt* and *outline.txt*.
+Our initial todo.txt contains the item "Walk dog"
 
-Our initial *todo.txt*
+    $ todo.sh ls
+    1 (A) Finish tps reports @work
+    2 Walk dog
 
-    Finish TPS report @work
-    Mow lawn
+However, we own neither a dog nor a leash, so we will create use **outline** to organize this project:
 
-Our initial *outline.txt*
+    $ todo.sh outline mkol WalkDog 2
 
-    (B) Walk the dog +dogwalk
-    	Get a dog
-    		Lookup animal shelters
-    	Buy a +leash
-    		Lookup pet stores
-    	Lookup dog parks
-    Call mom @phone
-    @someday
-    	get my GED
+The file *WalkDog.ol.txt* is created, the task item moved to the new file, and we edit the outline as follows:
 
-Sync command
+    Walk dog
+    	buy leash @shopping
+    	adopt dog
 
-    todo.sh outline sync
+After import, *todo.txt* contains:
 
-Our updated *todo.txt*
+    $ todo.sh ls
+    1 (A) Finish tps reports @work
+    2 buy leash @shopping outline:WalkDog
 
-    (B) Lookup animal shelters  id:1 +dogwalk
-    (B) Lookup pet stores id:2 +dogwalk +leash
-    Call mom @phone id:3
-    Finish TPS report @work id:4
-    Mow lawn id:5
+And *WalkDog.ol.txt* contains:
 
+    Walk dog
+    	adopt dog
 
-Our updated *outline.txt*
+Let us suppose that we find that buying the leash should be considered a project in it's own right:
 
-    (B) Walk the dog +dogwalk
-    	Get a dog
-    		Lookup animal shelters id:1
-    	Buy a +leash
-    		Lookup pet stores id:2
-    	Lookup dog parks
-    Call mom @phone id:3
-    @someday
-    	get my GED
-    Finish TPS report @work id:4
-    Mow lawn id:5
+    $ todo.sh outline mkol BuyLeash 2
+    Choose parent project outline:
+    	1) WalkDog.ol.txt
+	2) NONE
+	#? 1
 
-The id tags are to allow synchronization between todo.txt, outline.txt, and done.txt if an item has been edited.
+The above creates the outline *WalkDog.BuyLeash.ol.txt*. Since, this outline is a dependency of *WalkDog.ol.txt*, 'adopt dog' will not be imported until *WalkDog.BuyLeash.ol.txt* has been completed.
+
 
 Installation
 =====
 
-Add *outline* and *ol* to your todo.txt addon directory.
-
-Configure outline filename, location, and tags to block identification as *next action*, if necessary by editing the block underneath
-
-    # == CONFIG ==
-
-in *outline*
+Add *outline* and *ol* to your todo.txt addon directory. In order to automatically import next actions automatically after each time *todo.sh archive* runs, also add *archive* to the addon directory.
 
 Usage
 ======
 
-    Usage: todo.sh outline action [options]
-        todo.sh ol action [options]
+outline|ol addto|append PROJECT "TEXT..."
+	Append TEXT to outline with name containing PROJECT.
+	
+	If more than one outline name contains PROJECT, select outline
+	from menu.
+	
+outline|ol edit PROJECT
+	Open outline with name containing PROJECT using program specified
+	in \$EDITOR.
+	
+	If more than one outline name contains PROJECT, select outline
+	from menu.
 
-    Note: tab indented outline, outline.txt, should be present
-      in todo.txt directory
+outline|ol help
+	Display this page
+	
+outline|ol import
+	Next actions, as defined below, are imported into todo.txt from outline
+	files in todo directory, unless blocked by an existing subtask.
+	
+outline|ol mkol PROJECT [#ITEM]
+	Create an outline file corresponding to PROJECT, and move task at line
+	#ITEM in todo.txt to the outline. A menu to select a parent outline from
+	the existing outlines is presented.	
 
-    Actions:
-    add LINE_NUMBER INDENTATION "Task text"
-    a LINE_NUMBER INDENTATION "Task text"
-        Adds task text to line LINE_NUMBER with INDENTATION tabs
+outline|ol mv #ITEM PROJECT
+	Move todo task at #ITEM in todo.txt to outline with name containing 
+	PROJECT.
 
-    addafter LINE_NUMBER "Task text"
-    aa LINE_NUMBER "Task text"
-        Adds line of text in outline.txt below
-        line number LINE_NUMBER, with same indentation
+	If more than one outline name contains PROJECT, select outline
+	from menu.
 
-    addbefore LINE_NUMBER "Task text"
-    ab LINE_NUMBER "Task text"
-        Adds line of text in outline.txt before
-        line number LINE_NUMBER, with same indentation
+outline|ol prepend PROJECT "TEXT..."
+	Add TEXT as a line to the begging of outline with name containing PROJECT.
 
-    addsubtask LINE_NUMBER "Task text"
-    as LINE_NUMBER "Task text"
-        Adds line of text in outline.txt in line below
-        with additional indentation
+	If more than one outline name contains PROJECT, select outline
+	from menu.
 
-    export
-    e
-        Removes next actions from outline.txt which have been completed
-        Labels any new next actions in outline.txt with id:<number>.
-        Copies next actions from outline.txt to todo.txt unless already present
-        Removes items from todo.txt that are no longer next actions in outline.txt
+outline|ol import
+	Imports next action(s) from outlines into todo.txt. For each outline,
+	the existence of a child outline in the todo directory, or of a task
+	in todo.txt labeled as belonging to this outline or a child outline
+	will block import.
 
-    import
-    i
-        Copies new items from todo.txt to outline.txt
+	Outline files:
 
-    list [LINE_NUMBER]
-    ls [LINE_NUMBER]
-        If LINE_NUMBER is specified, displays immediate subtasks
-        of LINE_NUMBER. Otherwise displays top level tasks.
+	Files in the todo directory ending in ".ol.txt" are regarded 
+	as outline files.  Each file should be a tab-indented outline without 
+	blank lines.
 
-    listall [LINE_NUMBER]
-    lsa [LINE_NUMBER]
-        Displays all subtasks of LINE_NUMBER. If LINE_NUMBER
-        not specified, displays entire outline.
+	The outline filename format is:
+	"grandparentproject.parentproject.project.ol.txt"
 
-    move SRC_LINE DEST_LINE [NUM_TABS]
-    mv SRC_LINE DEST_LINE [NUM_TABS]
-        Moves source line to destination line in outline.txt
-        If indentation is not specified, original indentation is preserved
+	Parent projects in the filename indicate task dependency, and tasks from
+	"parent.ol.txt" will be blocked from import as long as
+	"parent.child.ol.txt" is present in the todo directory.
 
-    next
-    n
-        Displays next actions in outline.txt
-        Each top level task and item tagged with a project
-        (i.e. "+project") has one next action: the task with
-        with no subtask beneath it or sibling task above it
+	Next Actions:
 
-    rm LINE_NUMBER
-    del LINE_NUMBER
-         Removes specified line from outlook.txt
+	A next action is identified as an active task with no subtask, where 
+	an active task is the first item in the outline or the first subtask
+	of another active task. 
 
-    sync
-    s
-        Removes next actions from outline.txt which have been completed
-        Copies new items from todo.txt to outline.txt
-        Labels any new next actions in outline.txt with id:<number>.
-        Copies next actions from outline.txt to todo.txt unless already present
-        Removes items from todo.txt that are no longer next actions in outline.txt
+	An item's status as an active task or next action can be modified by
+	various tags described below.
 
-    tab LINE_NUMBER NUM_TABS
-    t LINE_NUMBER NUM_TABS
-        Adjusts indentation of specified line to specified tabs
+	Outline tags:
+
+	#next	Marks an outline item as active.
+	#list	Marks every direct subtask of an item as active.
+	#block   Blocks the item from being identified as a next action.
+	#waitfor:PROJECT   Blocks item as next action until 
+	"+PROJECT" is absent from todo.txt and there is no outline file in the 
+	todo directory corresponding to PROJECT.
+
+Tag and priority inheritancej:
+
+	Tags are words that have been prepended with the sigil #, @, or +. 
+	Tags with doubled sigils, as in @@context, are inherited by subtasks. 
+	This includes the special outline tags described above, and their 
+	effects. Tasks with priority indicated by, e.g. "(A)" have their 
+	prioirty inherited by any subtasks. 
+
