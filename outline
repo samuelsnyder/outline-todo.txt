@@ -42,7 +42,7 @@ getNextActionsFromOutline(){
 	local outline_file="$1"
 
 	local nextActionsString="$(
-  awk --re-interval -v indent="$OL_INDENT_CHAR" -v blockTag="$OL_BLOCK_TAG" -v checklistTag="$OL_LIST_TAG" -v newTaskTreeTag="$OL_NEXT_TAG" 'BEGIN{
+  gawk --re-interval -v indent="$OL_INDENT_CHAR" -v blockTag="$OL_BLOCK_TAG" -v checklistTag="$OL_LIST_TAG" -v newTaskTreeTag="$OL_NEXT_TAG" 'BEGIN{
   FS=indent
   }
   function processPrevTask(){
@@ -213,6 +213,7 @@ usage(){
 	outline|ol mkol PROJECT [#ITEM]
 	outline|ol mv #ITEM PROJECT
 	outline|ol prepend PROJECT "TEXT..."
+	outline|ol ls
 ENDUSAGE
 }
 
@@ -293,13 +294,16 @@ help(){
 		"+PROJECT" is absent from todo.txt and there is no outline file in the 
 		todo directory corresponding to PROJECT.
 
-	Tag and priority inheritancej:
+		Tag and priority inheritancej:
 
 		Tags are words that have been prepended with the sigil #, @, or +. 
 		Tags with doubled sigils, as in @@context, are inherited by subtasks. 
 		This includes the special outline tags described above, and their 
 		effects. Tasks with priority indicated by, e.g. "(A)" have their 
 		prioirty inherited by any subtasks. 
+
+	outline|ol ls
+		List all outlined projects in todo directory
 	
 ENDHELP
 }
@@ -339,7 +343,7 @@ importNextActions(){
 	fi
 
 	# get outline project info
-	project=${outline_filename%%${OL_FILENAME_ENDING}}
+	local project=${outline_filename%%${OL_FILENAME_ENDING}}
 
 	# check if child outlines exist in todo folder
 	local matching_files=()
@@ -380,10 +384,7 @@ importNextActions(){
 shift # $@ is now args after "ol" or "outline" 
 
 case "$1" in
-	"usage")
-		usage
-		;;
-	"help" | "h" )    
+	"help" | "h" | "usage" )    
 		if [ -t 1 ] ; then # STDOUT is a TTY
 			if which "${PAGER:-less}" >/dev/null 2>&1; then
 				# we have a working PAGER (or less as a default)
