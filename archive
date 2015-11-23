@@ -1,6 +1,5 @@
 #! /bin/bash
 
-shift 
 if [[ $1 = "usage" ]]; then
 	exit
 fi
