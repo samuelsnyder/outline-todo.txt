@@ -238,6 +238,8 @@ help(){
 	outline|ol import
 		Next actions, as defined below, are imported into todo.txt from outline
 		files in todo directory, unless blocked by an existing subtask.
+	outline|ol ls [TERM]
+		List names of outlines in todo directory, with name containing TERM if given.
 		
 	outline|ol mkol PROJECT [#ITEM]
 		Create an outline file corresponding to PROJECT, and move task at line
@@ -257,13 +259,7 @@ help(){
 		If more than one outline name contains PROJECT, select outline
 		from menu.
 
-	outline|ol import
-		Imports next action(s) from outlines into todo.txt. For each outline,
-		the existence of a child outline in the todo directory, or of a task
-		in todo.txt labeled as belonging to this outline or a child outline
-		will block import.
-
-		Outline files:
+	Outline files:
 
 		Files in the todo directory ending in "$OL_FILENAME_ENDING" are regarded 
 		as outline files.  Each file should be a tab-indented outline without 
@@ -276,7 +272,7 @@ help(){
 		"parent${OL_FILENAME_ENDING}" will be blocked from import as long as
 		"parent.child${OL_FILENAME_ENDING}" is present in the todo directory.
 	
-		Next Actions:
+	Next Actions:
 
 		A next action is identified as an active task with no subtask, where 
 		an active task is the first item in the outline or the first subtask
@@ -285,7 +281,7 @@ help(){
 		An item's status as an active task or next action can be modified by
 		various tags described below.
 
-		Outline tags:
+	Outline tags:
 
 		$OL_NEXT_TAG	Marks an outline item as active.
 		$OL_LIST_TAG	Marks every direct subtask of an item as active.
@@ -336,7 +332,11 @@ importNextActions(){
 		if [[ "$TODOTXT_FORCE" = 0 ]]; then
 			echo "remove $(basename "$outline_filename")? (y/n)"
 			read
-			[[ ! "$REPLY" =~ ^[Yy] ]] && return
+			if [[ ! "$REPLY" =~ ^[Yy] ]]; then
+				echo "edit $(basename "$outline_filename")? (y/n)"
+				[[ "$REPLY" =~ ^[Yy] ]] && $EDITOR "$TODO_DIR/$outline_filename" 
+				return
+			fi
 		fi
 		rm -fv "$TODO_DIR/$outline_filename" # remove file
 		return
@@ -462,10 +462,13 @@ case "$1" in
 		;;
 
 	"ls" )
+		shift
 		outlines=()
-		outlines=($TODO_DIR/*${OL_FILENAME_ENDING})
+		outlines=($TODO_DIR/*$1*${OL_FILENAME_ENDING})
 		[[ ! -f ${outlines[0]} ]] && echo "No outline files ending in ${OL_FILENAME_ENDING} in todo directory"
-		printf '%s\n' ${outlines[@]##*/}
+		echo "$(for outline in ${outlines[@]##*/}; do
+			echo  ${outline[@]%%${OL_FILENAME_ENDING}}
+		done)" | sort
 		;;
 
 	"mv" )
