@@ -139,3 +139,25 @@ Tag and priority inheritancej:
 	effects. Tasks with priority indicated by, e.g. "(A)" have their 
 	prioirty inherited by any subtasks. 
 
+Configuration
+=============
+
+Towards the top of `outline`, you will find the following configuration options:
+
+`OL_AUTO_IMPORT`: Automatically import after every action that changes an outline. Enabled by default.
+
+`EDITOR`: Text editor to launch for editing outline. Vim by default.
+
+`OL_FILENAME_ENDING`: Ending of outline file names. `.ol.txt` by default.
+
+`OL_FILENAME_DELIMITER`: Delimiter of project names in filename, `.` by default.
+
+`OL_INDENT_CHARS`: String that marks how indentations in the outline. TAB character by default.
+
+`OL_NEXT_TAG`: `#next` by default. Identifies this item's task tree as active. Use `##next` to activate all subtrees.
+
+`OL_LIST_TAG`: `#list` by defualt. Direct child task trees are active when task is active. Useful for shopping lists, etc 
+
+`OL_BLOCK_TAG`: `#block` by default. Prevents item from bieng identified as next action.
+
+`OL_WAITFOR_LABEL`: `#waitfor` by default. `#waitfor:PROJECT` will block identification as next action until there is no corresponding active project in todo.txt or outline file.
