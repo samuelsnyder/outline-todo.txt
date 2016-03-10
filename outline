@@ -19,7 +19,7 @@ EDITOR=${EDITOR:-"vim"} # set EDITOR, if not already set
 # does not conflict with your project names.
 OL_FILENAME_ENDING=".ol.txt" # ending of outline file names
 OL_FILENAME_DELIMITER="." # delimits project names in filename
-OL_INDENT_CHAR="\t" # how indentations in the outline are marked for awk. TAB character by default
+OL_INDENT_CHARS="\t" # how indentations in the outline are marked for awk. TAB character by default
 OL_NEXT_TAG="#next" # identifies this item's task tree as active. Use ##next to activate all subtrees
 OL_LIST_TAG="#list" # direct child task trees are active when task is active. Useful for shopping lists, etc 
 OL_BLOCK_TAG="#block" # Prevents item from bieng identified as next action
@@ -42,7 +42,7 @@ getNextActionsFromOutline(){
 	local outline_file="$1"
 
 	local nextActionsString="$(
-  gawk --re-interval -v indent="$OL_INDENT_CHAR" -v blockTag="$OL_BLOCK_TAG" -v checklistTag="$OL_LIST_TAG" -v newTaskTreeTag="$OL_NEXT_TAG" 'BEGIN{
+  gawk --re-interval -v indent="$OL_INDENT_CHARS" -v blockTag="$OL_BLOCK_TAG" -v checklistTag="$OL_LIST_TAG" -v newTaskTreeTag="$OL_NEXT_TAG" 'BEGIN{
   FS=indent
   }
   function processPrevTask(){
