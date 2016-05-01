@@ -451,7 +451,7 @@ case "$1" in
 		if [[ ${#outline_files[@]} > 1 ]] ; then
 			echo "Choose outline to edit:"
 			select file in ${outline_files[@]##*/}; do
-				$EDITOR $TODO_DIR/$file
+				$EDITOR "$TODO_DIR/$file"
 				break
 			done
 		else
