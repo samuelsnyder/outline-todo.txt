@@ -5,7 +5,7 @@ outline-todo.txt
 
 A *next action* is defined as the first task with no subtask of its own in an outline with no dependent outlines.
 
-*Next actions* inherit their parent task's priority, and any tags iwth a doubled sigil (e.g. ##tag, @@context, ++project).
+*Next actions* inherit their parent task's priority, and any tags with a doubled sigil (e.g. ##tag, @@context, ++project).
 
 Example
 ======
