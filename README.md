@@ -158,6 +158,6 @@ Towards the top of `outline`, you will find the following configuration options:
 
 `OL_LIST_TAG`: `#list` by defualt. Direct child task trees are active when task is active. Useful for shopping lists, etc 
 
-`OL_BLOCK_TAG`: `#block` by default. Prevents item from bieng identified as next action.
+`OL_BLOCK_TAG`: `#block` by default. Prevents item from being identified as next action.
 
 `OL_WAITFOR_LABEL`: `#waitfor` by default. `#waitfor:PROJECT` will block identification as next action until there is no corresponding active project in todo.txt or outline file.
